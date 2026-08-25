@@ -6,7 +6,7 @@ from sqlalchemy import pool
 
 from alembic import context
 
-from app.models import clinical, identity, timeline  # noqa: F401
+from app.models import audit, clinical, identity, timeline  # noqa: F401
 from app.models.base import Base
 
 # this is the Alembic Config object, which provides

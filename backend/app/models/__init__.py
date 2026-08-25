@@ -1,5 +1,13 @@
 """SQLAlchemy domain models."""
 
+from app.models.audit import (
+    AuditEvent,
+    ChangeReason,
+    Comment,
+    EntryVersion,
+    FeedbackAction,
+    ImportanceFeedback,
+)
 from app.models.identity import Clinic, Patient, User, UserRole
 from app.models.clinical import (
     ClinicalFact,
@@ -28,20 +36,26 @@ from app.models.timeline import (
 )
 
 __all__ = [
+    "AuditEvent",
     "AuthorRole",
+    "ChangeReason",
     "Clinic",
     "ClinicalFact",
+    "Comment",
     "ConsultSession",
     "Conflict",
     "ConflictStatus",
     "ConflictType",
     "Entry",
     "EntryType",
+    "EntryVersion",
+    "FeedbackAction",
     "InteractionType",
     "FactType",
     "Highlight",
     "HighlightCategory",
     "HighlightStatus",
+    "ImportanceFeedback",
     "Patient",
     "PersistenceType",
     "ProcessingStatus",
