@@ -1,0 +1,22 @@
+Nightingale Care Note - Attribution
+
+This file will be completed with exact dependency versions and licenses before submission.
+
+Planned technologies and services:
+- FastAPI
+- Next.js
+- React
+- TypeScript
+- Tailwind CSS
+- TanStack Query
+- SQLAlchemy
+- Alembic
+- Pydantic
+- psycopg
+- PostgreSQL
+- Supabase
+- DeepSeek API
+- pytest
+
+No real patient data is included in this repository.
+
