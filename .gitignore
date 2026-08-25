@@ -10,6 +10,7 @@ __pycache__/
 .ruff_cache/
 .venv/
 venv/
+*.egg-info/
 
 # Node / Next.js
 node_modules/
@@ -27,4 +28,3 @@ Thumbs.db
 *.log
 backend/htmlcov/
 work/
-
