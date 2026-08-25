@@ -1,6 +1,22 @@
 """SQLAlchemy domain models."""
 
 from app.models.identity import Clinic, Patient, User, UserRole
+from app.models.clinical import (
+    ClinicalFact,
+    Conflict,
+    ConflictStatus,
+    ConflictType,
+    FactType,
+    Highlight,
+    HighlightCategory,
+    HighlightStatus,
+    PersistenceType,
+    ReviewStatus,
+    RiskLevel,
+    Task,
+    TaskPriority,
+    TaskStatus,
+)
 from app.models.timeline import (
     AuthorRole,
     ConsultSession,
@@ -14,13 +30,27 @@ from app.models.timeline import (
 __all__ = [
     "AuthorRole",
     "Clinic",
+    "ClinicalFact",
     "ConsultSession",
+    "Conflict",
+    "ConflictStatus",
+    "ConflictType",
     "Entry",
     "EntryType",
     "InteractionType",
+    "FactType",
+    "Highlight",
+    "HighlightCategory",
+    "HighlightStatus",
     "Patient",
+    "PersistenceType",
     "ProcessingStatus",
     "ProvenanceType",
+    "ReviewStatus",
+    "RiskLevel",
+    "Task",
+    "TaskPriority",
+    "TaskStatus",
     "User",
     "UserRole",
 ]
