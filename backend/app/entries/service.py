@@ -1,6 +1,8 @@
 """Append-only entry snapshot operations."""
 
 import hashlib
+import re
+from difflib import SequenceMatcher
 
 from sqlalchemy import select
 from sqlalchemy.orm import Session
@@ -15,6 +17,10 @@ class EntryVersionConflictError(Exception):
         self.current_version = current_version
         self.expected_version = expected_version
         super().__init__("Entry version conflict")
+
+
+class EntryVersionNotFoundError(Exception):
+    pass
 
 
 def update_entry(
@@ -61,6 +67,91 @@ def update_entry(
     return entry
 
 
+def get_entry_diff(
+    db: Session,
+    entry_id: object,
+    from_version: int,
+    to_version: int,
+) -> list[dict[str, str]]:
+    versions = list(
+        db.scalars(
+            select(EntryVersion).where(
+                EntryVersion.entry_id == entry_id,
+                EntryVersion.version_number.in_((from_version, to_version)),
+            )
+        )
+    )
+    by_number = {version.version_number: version for version in versions}
+    if from_version not in by_number or to_version not in by_number:
+        raise EntryVersionNotFoundError
+
+    before = _tokens(by_number[from_version].content)
+    after = _tokens(by_number[to_version].content)
+    parts: list[dict[str, str]] = []
+    for operation, before_start, before_end, after_start, after_end in SequenceMatcher(
+        None, before, after
+    ).get_opcodes():
+        if operation in ("equal", "delete", "replace"):
+            part_type = "unchanged" if operation == "equal" else "removed"
+            _append_diff_part(parts, part_type, before[before_start:before_end])
+        if operation in ("insert", "replace"):
+            _append_diff_part(parts, "added", after[after_start:after_end])
+    return parts
+
+
+def revert_entry(
+    db: Session,
+    entry: Entry,
+    actor: User,
+    target_version: int,
+    expected_version: int,
+) -> EntryVersion:
+    if entry.current_version != expected_version:
+        raise EntryVersionConflictError(entry.current_version, expected_version)
+
+    target = db.scalar(
+        select(EntryVersion).where(
+            EntryVersion.entry_id == entry.id,
+            EntryVersion.version_number == target_version,
+        )
+    )
+    if target is None:
+        raise EntryVersionNotFoundError
+
+    new_version_number = entry.current_version + 1
+    new_version = EntryVersion(
+        entry=entry,
+        version_number=new_version_number,
+        content=target.content,
+        changed_by=actor,
+        change_reason=ChangeReason.REVERT,
+        source_version=entry.current_version,
+        reverted_from_version=target_version,
+        content_hash=_content_hash(target.content),
+    )
+    db.add(new_version)
+    db.add(
+        AuditEvent(
+            clinic_id=actor.clinic_id,
+            patient_id=entry.patient_id,
+            actor=actor,
+            action="entry.reverted",
+            resource_type="entry",
+            resource_id=entry.id,
+            event_metadata={
+                "from_version": entry.current_version,
+                "to_version": new_version_number,
+                "reverted_from": target_version,
+            },
+        )
+    )
+    entry.content = target.content
+    entry.current_version = new_version_number
+    db.commit()
+    db.refresh(new_version)
+    return new_version
+
+
 def _ensure_snapshot_for_current_version(
     db: Session,
     entry: Entry,
@@ -92,3 +183,17 @@ def _ensure_snapshot_for_current_version(
 
 def _content_hash(content: str) -> str:
     return hashlib.sha256(content.encode("utf-8")).hexdigest()
+
+
+def _tokens(content: str) -> list[str]:
+    return re.findall(r"\S+\s*", content)
+
+
+def _append_diff_part(
+    parts: list[dict[str, str]],
+    part_type: str,
+    tokens: list[str],
+) -> None:
+    text = "".join(tokens).strip()
+    if text:
+        parts.append({"type": part_type, "text": text})
