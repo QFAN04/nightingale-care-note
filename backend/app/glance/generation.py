@@ -29,6 +29,7 @@ from app.models.clinical import (
     Task,
     TaskStatus,
 )
+from app.models.identity import Patient
 from app.models.timeline import AuthorRole, EntryType
 
 
@@ -38,6 +39,11 @@ def generate_highlight_suggestions(
     *,
     now: datetime,
 ) -> list[Highlight]:
+    clinic_id = db.scalar(
+        select(Patient.clinic_id).where(Patient.id == patient_id)
+    )
+    if clinic_id is None:
+        return []
     facts = list(
         db.scalars(
             select(ClinicalFact)
@@ -75,7 +81,7 @@ def generate_highlight_suggestions(
         if task.source_fact_id is not None:
             tasks_by_fact[task.source_fact_id].append(task)
     conflicts_by_fact = {conflict.conflicting_fact_id: conflict for conflict in conflicts}
-    feedback_by_entity = _feedback_counts(db, patient_id)
+    feedback_by_entity = _feedback_counts(db, clinic_id)
 
     generated: list[Highlight] = []
     for fact in facts:
@@ -168,11 +174,13 @@ def generate_highlight_suggestions(
 
 
 def _feedback_counts(
-    db: Session, patient_id: uuid.UUID
+    db: Session, clinic_id: uuid.UUID
 ) -> dict[str, tuple[int, int]]:
     counts: dict[str, list[int]] = defaultdict(lambda: [0, 0])
     feedback = db.scalars(
-        select(ImportanceFeedback).where(ImportanceFeedback.patient_id == patient_id)
+        select(ImportanceFeedback)
+        .join(Patient, ImportanceFeedback.patient_id == Patient.id)
+        .where(Patient.clinic_id == clinic_id)
     )
     for item in feedback:
         key = item.entity_key.casefold()
