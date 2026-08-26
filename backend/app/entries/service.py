@@ -4,7 +4,7 @@ import hashlib
 import re
 from difflib import SequenceMatcher
 
-from sqlalchemy import select
+from sqlalchemy import select, update
 from sqlalchemy.orm import Session
 
 from app.models.audit import AuditEvent, ChangeReason, EntryVersion
@@ -30,11 +30,27 @@ def update_entry(
     content: str,
     expected_version: int,
 ) -> Entry:
-    if entry.current_version != expected_version:
-        raise EntryVersionConflictError(entry.current_version, expected_version)
-
     _ensure_snapshot_for_current_version(db, entry, actor)
-    new_version = entry.current_version + 1
+    new_version = expected_version + 1
+    claimed = db.execute(
+        update(Entry)
+        .where(
+            Entry.id == entry.id,
+            Entry.current_version == expected_version,
+        )
+        .values(content=content, current_version=new_version)
+        .execution_options(synchronize_session=False)
+    )
+    if claimed.rowcount != 1:
+        db.rollback()
+        current_version = db.scalar(
+            select(Entry.current_version).where(Entry.id == entry.id)
+        )
+        raise EntryVersionConflictError(
+            current_version if current_version is not None else entry.current_version,
+            expected_version,
+        )
+
     db.add(
         EntryVersion(
             entry=entry,
@@ -55,13 +71,11 @@ def update_entry(
             resource_type="entry",
             resource_id=entry.id,
             event_metadata={
-                "from_version": entry.current_version,
+                "from_version": expected_version,
                 "to_version": new_version,
             },
         )
     )
-    entry.content = content
-    entry.current_version = new_version
     db.commit()
     db.refresh(entry)
     return entry
