@@ -10,6 +10,7 @@ from app.ai.prompts.scribe import build_scribe_system_prompt
 from app.ai.providers.base import ScribeProvider
 from app.ai.redaction import redact_phi
 from app.ai.schemas import ScribeResult
+from app.conflicts.service import detect_medication_dose_conflicts
 from app.glance.generation import generate_highlight_suggestions
 from app.models.clinical import (
     ClinicalFact,
@@ -133,6 +134,7 @@ def _persist_validated_output(
     db.add(entry)
 
     facts_by_quote: dict[str, ClinicalFact] = {}
+    created_facts: list[ClinicalFact] = []
     for extracted in output.facts:
         source_start = consult.redacted_transcript.index(extracted.source_quote)
         fact = ClinicalFact(
@@ -152,6 +154,7 @@ def _persist_validated_output(
             review_status=ReviewStatus.SUGGESTED,
         )
         db.add(fact)
+        created_facts.append(fact)
         facts_by_quote.setdefault(extracted.source_quote, fact)
 
     for suggested in output.tasks:
@@ -168,6 +171,7 @@ def _persist_validated_output(
         )
 
     db.flush()
+    detect_medication_dose_conflicts(db, consult.patient_id, created_facts)
     generate_highlight_suggestions(
         db,
         consult.patient_id,
