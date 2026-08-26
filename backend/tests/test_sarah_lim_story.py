@@ -5,7 +5,8 @@ from app.models.audit import Comment
 from app.models.base import Base
 from app.models.clinical import Conflict, ConflictStatus, Task, TaskStatus
 from app.models.timeline import ConsultSession, Entry, EntryType
-from app.seed.sarah_lim import seed_sarah_lim
+from app.seed.command import ensure_sarah_lim_seeded
+from app.seed.sarah_lim import fixed_uuid, seed_sarah_lim
 
 
 def test_sarah_story_covers_the_frozen_longitudinal_demo() -> None:
@@ -75,3 +76,17 @@ def test_august_doctor_consult_keeps_phi_local_and_redacts_llm_text() -> None:
         assert "[PATIENT_NAME]" in doctor_session.redacted_transcript
         assert "[PHONE]" in doctor_session.redacted_transcript
         assert "[ID]" in doctor_session.redacted_transcript
+
+
+def test_seed_command_is_safe_to_run_more_than_once() -> None:
+    engine = create_engine("sqlite+pysqlite:///:memory:")
+    Base.metadata.create_all(engine)
+
+    with Session(engine) as session:
+        assert ensure_sarah_lim_seeded(session) is True
+        assert ensure_sarah_lim_seeded(session) is False
+
+        entries = session.scalars(
+            select(Entry).where(Entry.patient_id == fixed_uuid(2))
+        ).all()
+        assert len(entries) == 5
