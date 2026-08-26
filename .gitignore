@@ -26,5 +26,6 @@ Thumbs.db
 
 # Local artifacts
 *.log
+backend/*.db
 backend/htmlcov/
 work/
