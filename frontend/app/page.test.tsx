@@ -1,4 +1,4 @@
-import { cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { cleanup, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import Home from "./page";
@@ -25,9 +25,39 @@ describe("Nightingale application shell", () => {
     expect(
       screen.getByRole("heading", { level: 3, name: "Longitudinal timeline" }),
     ).toBeInTheDocument();
-    expect(screen.getByText("Worsening chest pressure")).toBeInTheDocument();
-    expect(screen.getByText(/Penicillin allergy confirmed/)).toBeInTheDocument();
+    expect(screen.getAllByText("Worsening chest pressure")).not.toHaveLength(0);
+    expect(screen.getAllByText(/Penicillin allergy confirmed/)).not.toHaveLength(0);
     expect(screen.getAllByRole("link", { name: "View source" })).not.toHaveLength(0);
+  });
+
+  it("renders the explainable four-section Care Glance with source jumps", () => {
+    render(<Home />);
+
+    expect(
+      screen.getByRole("heading", { level: 3, name: "Care Glance" }),
+    ).toBeInTheDocument();
+
+    const critical = screen.getByRole("region", { name: "Critical" });
+    const recent = screen.getByRole("region", { name: "Recent changes" });
+    const actions = screen.getByRole("region", { name: "Open actions" });
+    const conflicts = screen.getByRole("region", { name: "Conflicts" });
+
+    expect(within(critical).getByText("Penicillin allergy")).toBeInTheDocument();
+    expect(within(recent).getByText("Worsening chest pressure")).toBeInTheDocument();
+    expect(within(actions).getByText(/Clinician to review/)).toBeInTheDocument();
+    expect(within(conflicts).getByText("Atorvastatin dose discrepancy")).toBeInTheDocument();
+
+    const evidenceToggle = within(critical).getByText("Evidence & details");
+    fireEvent.click(evidenceToggle);
+    expect(evidenceToggle.closest("details")).toHaveAttribute("open");
+    expect(
+      within(critical).getByText(/previous reaction was urticaria/),
+    ).toBeInTheDocument();
+    expect(within(critical).getByRole("link", { name: "Jump to source" })).toHaveAttribute(
+      "href",
+      "#entry-apr-15",
+    );
+    expect(document.body.textContent).not.toMatch(/base_score|learned_score|final_score/i);
   });
 
   it("runs the frozen AI scribe modal and refreshes the timeline", async () => {

@@ -2,9 +2,10 @@
 
 import { useState } from "react";
 
+import { CareGlance } from "@/components/care-glance";
 import { ScribeModal } from "@/components/scribe-modal";
 import { TimelineCard } from "@/components/timeline-card";
-import { sarahLim, sarahTimeline, type TimelineItem } from "@/lib/demo-data";
+import { sarahGlance, sarahLim, sarahTimeline, type TimelineItem } from "@/lib/demo-data";
 import type { ScribeResult } from "@/lib/scribe-api";
 
 const SARAH_PATIENT_ID = "00000000-0000-0000-0000-000000000002";
@@ -44,6 +45,8 @@ export function CareNoteWorkspace() {
             New AI Scribe
           </button>
         </div>
+
+        <CareGlance sections={sarahGlance} />
 
         <section aria-labelledby="timeline-heading" className="mt-8">
           <div className="flex items-end justify-between gap-4">

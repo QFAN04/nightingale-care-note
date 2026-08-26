@@ -11,12 +11,96 @@ export type TimelineItem = {
   sourceId?: string;
 };
 
+export type GlanceItem = {
+  id: string;
+  title: string;
+  status: string;
+  riskReason: string;
+  evidence: string;
+  details: string[];
+  sourceId: string;
+};
+
+export type GlanceSection = {
+  id: "critical" | "recent" | "actions" | "conflicts";
+  title: string;
+  eyebrow: string;
+  items: GlanceItem[];
+};
+
 export const sarahLim = {
   externalRef: "PAT-001",
   name: "Sarah Lim",
   detail: "Female · 42 years",
   clinic: "Nightingale Central Clinic",
 };
+
+export const sarahGlance: GlanceSection[] = [
+  {
+    id: "critical",
+    title: "Critical",
+    eyebrow: "Persistent safety context",
+    items: [
+      {
+        id: "glance-allergy",
+        title: "Penicillin allergy",
+        status: "Accepted",
+        riskReason: "Clinician-confirmed critical allergy with persistent safety relevance.",
+        evidence: "Penicillin allergy confirmed; previous reaction was urticaria.",
+        details: ["Reaction: urticaria", "Review: confirmed"],
+        sourceId: "entry-apr-15",
+      },
+    ],
+  },
+  {
+    id: "recent",
+    title: "Recent changes",
+    eyebrow: "Needs clinical review",
+    items: [
+      {
+        id: "glance-chest-pressure",
+        title: "Worsening chest pressure",
+        status: "Suggested",
+        riskReason: "High-risk symptom reported recently; clinical follow-up remains unresolved.",
+        evidence: "Last night the chest pressure felt stronger than before.",
+        details: ["Risk: high", "Review: pending"],
+        sourceId: "entry-aug-23",
+      },
+    ],
+  },
+  {
+    id: "actions",
+    title: "Open actions",
+    eyebrow: "Prioritised follow-up",
+    items: [
+      {
+        id: "glance-review-task",
+        title: "Clinician to review persistent chest pressure and document next steps",
+        status: "High priority",
+        riskReason: "Open high-priority action assigned for clinician follow-up.",
+        evidence: "Chest pressure remains present. Escalated to the clinician for review.",
+        details: ["Assigned: clinician", "Status: open"],
+        sourceId: "entry-aug-24",
+      },
+    ],
+  },
+  {
+    id: "conflicts",
+    title: "Conflicts",
+    eyebrow: "Reconciliation required",
+    items: [
+      {
+        id: "glance-dose-conflict",
+        title: "Atorvastatin dose discrepancy",
+        status: "Detected",
+        riskReason: "Patient-reported dose conflicts with the clinician-confirmed record.",
+        evidence: "I thought I was taking Atorvastatin 10 mg.",
+        details: ["Confirmed record: 20 mg once daily", "Reported: 10 mg"],
+        sourceId: "entry-aug-25",
+      },
+    ],
+  },
+];
 
 export const sarahTimeline: TimelineItem[] = [
   {
