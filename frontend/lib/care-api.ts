@@ -128,25 +128,29 @@ function section(
 
 
 function mapGlanceItem(item: ApiGlanceItem): GlanceItem {
-  const details = [
-    item.details.entity_name ? `Entity: ${item.details.entity_name}` : null,
-    item.details.value_text ? `Value: ${item.details.value_text}` : null,
-    item.details.value_number !== null
-      ? `Value: ${item.details.value_number}${item.details.unit ? ` ${item.details.unit}` : ""}`
-      : null,
-    item.details.fact_review_status
-      ? `Review: ${item.details.fact_review_status}`
-      : null,
-    item.details.task_priority ? `Priority: ${item.details.task_priority}` : null,
-    item.details.task_status ? `Status: ${item.details.task_status}` : null,
-    item.details.authoritative_value
-      ? `Confirmed record: ${item.details.authoritative_value}`
-      : null,
-    item.details.conflicting_value
-      ? `Reported: ${item.details.conflicting_value}`
-      : null,
-    `Risk: ${item.risk_level}`,
-  ].filter((value): value is string => value !== null);
+  const details = Array.from(
+    new Set(
+      [
+        item.details.entity_name ? `Entity: ${item.details.entity_name}` : null,
+        item.details.value_text ? `Value: ${item.details.value_text}` : null,
+        item.details.value_number !== null
+          ? `Value: ${item.details.value_number}${item.details.unit ? ` ${item.details.unit}` : ""}`
+          : null,
+        item.details.fact_review_status
+          ? `Review: ${item.details.fact_review_status}`
+          : null,
+        item.details.task_priority ? `Priority: ${item.details.task_priority}` : null,
+        item.details.task_status ? `Status: ${item.details.task_status}` : null,
+        item.details.authoritative_value
+          ? `Confirmed record: ${item.details.authoritative_value}`
+          : null,
+        item.details.conflicting_value
+          ? `Reported: ${item.details.conflicting_value}`
+          : null,
+        `Risk: ${item.risk_level}`,
+      ].filter((value): value is string => value !== null),
+    ),
+  );
 
   return {
     id: item.id,

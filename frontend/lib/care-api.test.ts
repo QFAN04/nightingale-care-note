@@ -53,7 +53,37 @@ describe("role-aware care workspace API", () => {
               },
             ],
             open_actions: [],
-            conflicts: [],
+            conflicts: [
+              {
+                id: "00000000-0000-0000-0000-000000000042",
+                title: "Atorvastatin discrepancy",
+                category: "conflict",
+                status: "suggested",
+                risk_level: "medium",
+                risk_reason: "Dose conflict",
+                source: {
+                  entry_id: "00000000-0000-0000-0000-000000000014",
+                  entry_type: "ai_doctor_consult_summary",
+                  occurred_at: "2026-08-25T09:31:00Z",
+                  provenance_type: "consult_session",
+                  provenance_id: "00000000-0000-0000-0000-000000000021",
+                  source_quote: "Atorvastatin 10 mg",
+                  source_start: 10,
+                  source_end: 29,
+                },
+                details: {
+                  entity_name: "atorvastatin",
+                  value_text: "10 mg",
+                  value_number: 10,
+                  unit: "mg",
+                  fact_review_status: "suggested",
+                  task_priority: null,
+                  task_status: null,
+                  authoritative_value: "20 mg once daily",
+                  conflicting_value: "10 mg",
+                },
+              },
+            ],
           }),
         };
       }
@@ -102,6 +132,8 @@ describe("role-aware care workspace API", () => {
       sourceEvidence: "chest pressure felt stronger",
       review: "Pending review",
     });
+    const conflictDetails = workspace.sections[3].items[0].details;
+    expect(new Set(conflictDetails).size).toBe(conflictDetails.length);
   });
 
   it("rejects a partial workspace response instead of mixing role scopes", async () => {
