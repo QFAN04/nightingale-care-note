@@ -122,7 +122,7 @@ cd D:\nightingale-care-note\backend
 .\.venv\Scripts\python.exe -m alembic upgrade head
 ```
 
-所有 13 张 `public` 表都启用了 RLS。第一版采用 **deny-by-default**：不创建客户端放行 policy，浏览器不能直接读写临床表；FastAPI 的 clinic-scoped RBAC 是业务授权边界。不要为了消除 Supabase Advisor 的 `RLS Enabled No Policy` INFO 而创建宽松 policy。
+所有 13 张 `public` 业务表以及 Alembic 的 `public.alembic_version` 元数据表都启用了 RLS。第一版采用 **deny-by-default**：不创建客户端放行 policy，浏览器不能直接读写临床表；FastAPI 的 clinic-scoped RBAC 是业务授权边界。不要为了消除 Supabase Advisor 的 `RLS Enabled No Policy` INFO 而创建宽松 policy。
 
 ## DeepSeek setup
 
