@@ -1,22 +1,135 @@
-Nightingale Care Note - Attribution
+Nightingale Care Note - Third-Party Attribution
+================================================
 
-This file will be completed with exact dependency versions and licenses before submission.
+This prototype uses only synthetic patient data. It does not include model
+weights, Supabase source code, DeepSeek source code, or real patient data.
 
-Planned technologies and services:
-- FastAPI
-- Next.js
-- React
-- TypeScript
-- Tailwind CSS
-- TanStack Query
-- SQLAlchemy
-- Alembic
-- Pydantic
-- psycopg
-- PostgreSQL
-- Supabase
-- DeepSeek API
-- pytest
+Versions below were resolved from the local Python environment and
+frontend/package-lock.json on 2026-08-26. License names are SPDX identifiers
+where the upstream package publishes one. The full license text shipped with
+each installed package remains authoritative.
 
-No real patient data is included in this repository.
 
+Application runtime dependencies
+--------------------------------
+
+FastAPI 0.141.1
+  Copyright (c) Sebastian Ramirez
+  License: MIT
+  https://github.com/fastapi/fastapi
+
+SQLAlchemy 2.0.52
+  Copyright (c) SQLAlchemy authors and contributors
+  License: MIT
+  https://www.sqlalchemy.org/
+
+Pydantic 2.13.4 and pydantic-settings 2.15.0
+  Copyright (c) Pydantic Services Inc. and contributors
+  License: MIT
+  https://github.com/pydantic/pydantic
+
+Alembic 1.19.1
+  Copyright (c) SQLAlchemy authors and contributors
+  License: MIT
+  https://alembic.sqlalchemy.org/
+
+psycopg 3.3.4
+  Copyright (c) Daniele Varrazzo and contributors
+  License: LGPL-3.0-only
+  https://www.psycopg.org/psycopg3/
+
+HTTPX 0.28.1
+  Copyright (c) Encode OSS Ltd. and contributors
+  License: BSD-3-Clause
+  https://www.python-httpx.org/
+
+Uvicorn 0.52.4
+  Copyright (c) Encode OSS Ltd. and contributors
+  License: BSD-3-Clause
+  https://www.uvicorn.org/
+
+Next.js 16.3.2
+  Copyright (c) Vercel, Inc.
+  License: MIT
+  https://nextjs.org/
+
+React 19.2.8 and React DOM 19.2.8
+  Copyright (c) Meta Platforms, Inc. and affiliates
+  License: MIT
+  https://react.dev/
+
+TanStack Query 5.102.3
+  Copyright (c) Tanner Linsley
+  License: MIT
+  https://tanstack.com/query
+
+Tailwind CSS 4.3.3
+  Copyright (c) Tailwind Labs, Inc.
+  License: MIT
+  https://tailwindcss.com/
+
+
+Development, test, and document tooling
+---------------------------------------
+
+TypeScript 5.9.3
+  Copyright (c) Microsoft Corporation
+  License: Apache-2.0
+  https://www.typescriptlang.org/
+
+ESLint 9.39.5
+  Copyright (c) OpenJS Foundation and other contributors
+  License: MIT
+  https://eslint.org/
+
+pytest 8.4.2
+  Copyright (c) pytest developers
+  License: MIT
+  https://pytest.org/
+
+Vitest 4.1.11
+  Copyright (c) Anthony Fu and Vitest contributors
+  License: MIT
+  https://vitest.dev/
+
+Testing Library for React 16.3.2
+  Copyright (c) Kent C. Dodds and contributors
+  License: MIT
+  https://testing-library.com/
+
+ReportLab 4.4.9
+  Copyright (c) ReportLab Inc.
+  License: BSD license; see the upstream license text for details
+  https://www.reportlab.com/opensource/
+
+
+Database and hosted services
+----------------------------
+
+PostgreSQL 17
+  Copyright (c) 1996-2026 The PostgreSQL Global Development Group
+  Copyright (c) 1994 The Regents of the University of California
+  License: PostgreSQL License
+  https://www.postgresql.org/about/licence/
+
+Supabase
+  Used as a hosted PostgreSQL service for the dedicated
+  "nightingale-care-note" project. No Supabase client SDK or Supabase source
+  code is redistributed by this repository. Service use is governed by the
+  applicable Supabase terms.
+  https://supabase.com/terms
+
+DeepSeek API
+  Used as an external hosted inference service through an HTTP provider
+  abstraction. No DeepSeek model weights or service source code are included.
+  Service use is governed by the DeepSeek Open Platform Terms of Service.
+  https://cdn.deepseek.com/policies/en-US/deepseek-open-platform-terms-of-service.html
+
+
+Project content
+---------------
+
+The Nightingale application source, Sarah Lim synthetic story, tests,
+documentation, and generated technical brief are project-authored content
+unless a file states otherwise. Product and company names are trademarks of
+their respective owners; their inclusion does not imply endorsement.
