@@ -4,7 +4,18 @@ import enum
 import uuid
 from datetime import datetime
 
-from sqlalchemy import CheckConstraint, DateTime, Float, ForeignKey, Index, Integer, Text, Uuid, func
+from sqlalchemy import (
+    CheckConstraint,
+    DateTime,
+    Float,
+    ForeignKey,
+    Index,
+    Integer,
+    Text,
+    Uuid,
+    func,
+    text,
+)
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.models.base import Base
@@ -88,6 +99,7 @@ class ClinicalFact(Base):
         ),
         Index("ix_clinical_facts_patient_id", "patient_id"),
         Index("ix_clinical_facts_entry_id", "entry_id"),
+        Index("ix_clinical_facts_patient_entry", "patient_id", "entry_id"),
         Index("ix_clinical_facts_reviewed_by_id", "reviewed_by_id"),
         Index("ix_clinical_facts_patient_entity", "patient_id", "entity_name"),
     )
@@ -144,6 +156,12 @@ class Highlight(Base):
         Index("ix_highlights_clinical_fact_id", "clinical_fact_id"),
         Index("ix_highlights_reviewed_by_id", "reviewed_by_id"),
         Index("ix_highlights_patient_status", "patient_id", "status"),
+        Index(
+            "ix_highlights_patient_status_score",
+            "patient_id",
+            "status",
+            text("(base_score + learned_score) DESC"),
+        ),
     )
 
     id: Mapped[uuid.UUID] = mapped_column(Uuid, primary_key=True, default=uuid.uuid4)

@@ -57,11 +57,11 @@ def build_care_state(
                     (HighlightCategory.CRITICAL, HighlightCategory.RECENT_CHANGE)
                 ),
             )
+            .order_by(
+                (Highlight.base_score + Highlight.learned_score).desc(),
+                Highlight.created_at.desc(),
+            )
         )
-    )
-    highlights.sort(
-        key=lambda item: (item.base_score + item.learned_score, _aware(item.created_at)),
-        reverse=True,
     )
 
     critical = [
