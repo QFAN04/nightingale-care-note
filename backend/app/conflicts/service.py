@@ -5,6 +5,7 @@ from __future__ import annotations
 import re
 import uuid
 from dataclasses import dataclass
+from datetime import datetime, timezone
 
 from sqlalchemy import select
 from sqlalchemy.orm import Session, joinedload
@@ -18,6 +19,8 @@ from app.models.clinical import (
     ReviewStatus,
 )
 from app.models.identity import UserRole
+from app.models.audit import AuditEvent
+from app.models.identity import Patient, User
 from app.models.timeline import AuthorRole
 
 
@@ -32,6 +35,57 @@ _DOSE_PATTERN = re.compile(
 class Dose:
     amount: float
     unit: str
+
+
+class ConflictNotFoundError(Exception):
+    pass
+
+
+class ConflictAlreadyClosedError(Exception):
+    pass
+
+
+def resolve_conflict(
+    db: Session,
+    conflict_id: uuid.UUID,
+    resolver: User,
+    resolution_note: str,
+    *,
+    now: datetime | None = None,
+) -> Conflict:
+    conflict = db.scalar(
+        select(Conflict).where(
+            Conflict.id == conflict_id,
+            Conflict.patient.has(Patient.clinic_id == resolver.clinic_id),
+        )
+    )
+    if conflict is None:
+        raise ConflictNotFoundError
+    if conflict.status is not ConflictStatus.DETECTED:
+        raise ConflictAlreadyClosedError
+
+    resolved_at = now or datetime.now(timezone.utc)
+    conflict.status = ConflictStatus.RESOLVED
+    conflict.resolution = resolution_note
+    conflict.resolved_by = resolver
+    conflict.resolved_at = resolved_at
+    db.add(
+        AuditEvent(
+            clinic_id=resolver.clinic_id,
+            patient_id=conflict.patient_id,
+            actor=resolver,
+            action="conflict.resolved",
+            resource_type="conflict",
+            resource_id=conflict.id,
+            event_metadata={
+                "from_status": ConflictStatus.DETECTED.value,
+                "to_status": ConflictStatus.RESOLVED.value,
+            },
+            created_at=resolved_at,
+        )
+    )
+    db.commit()
+    return conflict
 
 
 def detect_medication_dose_conflicts(

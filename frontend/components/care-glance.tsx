@@ -3,6 +3,7 @@
 import { useState } from "react";
 
 import type { GlanceSection } from "@/lib/demo-data";
+import { resolveConflict } from "@/lib/conflict-api";
 import { reviewHighlight, type HighlightReviewAction } from "@/lib/highlight-api";
 
 const sectionStyles: Record<GlanceSection["id"], { accent: string; badge: string; dot: string }> = {
@@ -29,14 +30,17 @@ const sectionStyles: Record<GlanceSection["id"], { accent: string; badge: string
 };
 
 export function CareGlance({
+  canResolveConflicts,
   currentUserId,
   sections,
 }: {
+  canResolveConflicts: boolean;
   currentUserId: string;
   sections: GlanceSection[];
 }) {
   const [visibleSections, setVisibleSections] = useState(sections);
   const [pendingId, setPendingId] = useState<string | null>(null);
+  const [resolutionNotes, setResolutionNotes] = useState<Record<string, string>>({});
   const [reviewError, setReviewError] = useState<string | null>(null);
 
   async function handleReview(highlightId: string, action: HighlightReviewAction) {
@@ -64,6 +68,31 @@ export function CareGlance({
       );
     } catch (error) {
       setReviewError(error instanceof Error ? error.message : "The review could not be saved.");
+    } finally {
+      setPendingId(null);
+    }
+  }
+
+  async function handleConflictResolution(conflictId: string) {
+    const resolutionNote = resolutionNotes[conflictId]?.trim();
+    if (!resolutionNote) return;
+    setPendingId(conflictId);
+    setReviewError(null);
+    try {
+      await resolveConflict(conflictId, resolutionNote, currentUserId);
+      setVisibleSections((current) =>
+        current.map((section) => ({
+          ...section,
+          items:
+            section.id === "conflicts"
+              ? section.items.filter((item) => item.id !== conflictId)
+              : section.items,
+        })),
+      );
+    } catch (error) {
+      setReviewError(
+        error instanceof Error ? error.message : "The conflict resolution could not be saved.",
+      );
     } finally {
       setPendingId(null);
     }
@@ -158,6 +187,36 @@ export function CareGlance({
                       <p className="mt-3 text-xs font-semibold text-[#176b5b]">
                         ✓ Accepted by {item.acceptedBy}
                       </p>
+                    ) : null}
+
+                    {section.id === "conflicts" && canResolveConflicts ? (
+                      <div className="mt-3 rounded-lg border border-[#e7dded] bg-[#f8f4fb] p-3">
+                        <label className="block text-[11px] font-semibold text-[#624b78]">
+                          Resolution note
+                          <textarea
+                            aria-label={`Resolution note for ${item.title}`}
+                            className="mt-2 min-h-20 w-full resize-y rounded-lg border border-[#d8cce1] bg-white px-3 py-2 text-xs font-normal text-[#31443f] outline-none focus:border-[#80669b]"
+                            onChange={(event) =>
+                              setResolutionNotes((current) => ({
+                                ...current,
+                                [item.id]: event.target.value,
+                              }))
+                            }
+                            placeholder="Document the verified clinical decision"
+                            value={resolutionNotes[item.id] ?? ""}
+                          />
+                        </label>
+                        <button
+                          className="mt-2 rounded-lg bg-[#6d5488] px-3 py-1.5 text-xs font-semibold text-white disabled:opacity-60"
+                          disabled={
+                            pendingId === item.id || !(resolutionNotes[item.id]?.trim())
+                          }
+                          onClick={() => void handleConflictResolution(item.id)}
+                          type="button"
+                        >
+                          Resolve conflict
+                        </button>
+                      </div>
                     ) : null}
 
                     <details className="group mt-3 border-t border-[#e4ece9] pt-3">

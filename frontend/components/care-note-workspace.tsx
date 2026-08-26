@@ -48,7 +48,11 @@ export function CareNoteWorkspace() {
           </button>
         </div>
 
-        <CareGlance currentUserId={identity.id} sections={sarahGlance} />
+        <CareGlance
+          canResolveConflicts={identity.role === "clinician"}
+          currentUserId={identity.id}
+          sections={sarahGlance}
+        />
 
         <section aria-labelledby="timeline-heading" className="mt-8">
           <div className="flex items-end justify-between gap-4">

@@ -105,7 +105,7 @@ export const sarahGlance: GlanceSection[] = [
     eyebrow: "Reconciliation required",
     items: [
       {
-        id: "glance-dose-conflict",
+        id: "00000000-0000-0000-0000-000000000033",
         title: "Atorvastatin dose discrepancy",
         status: "Detected",
         riskReason: "Patient-reported dose conflicts with the clinician-confirmed record.",

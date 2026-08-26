@@ -265,4 +265,50 @@ describe("Nightingale application shell", () => {
     expect(await within(staffCard!).findByText("Resolved by Dr Priya Nair")).toBeInTheDocument();
     expect(within(staffCard!).queryByRole("button", { name: "Resolve comment" })).not.toBeInTheDocument();
   });
+
+  it("lets a clinician resolve a medication conflict with a resolution note", async () => {
+    const fetchMock = vi.fn().mockResolvedValue({
+      ok: true,
+      json: async () => ({
+        id: "00000000-0000-0000-0000-000000000033",
+        status: "resolved",
+        resolution_note: "Medication dose verified as 20 mg.",
+        resolved_by: {
+          id: "00000000-0000-0000-0000-000000000005",
+          display_name: "Dr Priya Nair",
+        },
+        resolved_at: "2026-08-26T06:30:00Z",
+      }),
+    });
+    vi.stubGlobal("fetch", fetchMock);
+    render(<Home />);
+
+    const conflicts = screen.getByRole("region", { name: "Conflicts" });
+    fireEvent.change(
+      within(conflicts).getByLabelText(
+        "Resolution note for Atorvastatin dose discrepancy",
+      ),
+      { target: { value: "Medication dose verified as 20 mg." } },
+    );
+    fireEvent.click(within(conflicts).getByRole("button", { name: "Resolve conflict" }));
+
+    await waitFor(() => expect(fetchMock).toHaveBeenCalledOnce());
+    expect(fetchMock).toHaveBeenCalledWith(
+      "/api/v1/conflicts/00000000-0000-0000-0000-000000000033/resolve",
+      expect.objectContaining({
+        method: "POST",
+        headers: expect.objectContaining({
+          "X-Demo-User-ID": "00000000-0000-0000-0000-000000000005",
+        }),
+        body: JSON.stringify({
+          resolution_note: "Medication dose verified as 20 mg.",
+        }),
+      }),
+    );
+    await waitFor(() =>
+      expect(
+        within(conflicts).queryByText("Atorvastatin dose discrepancy"),
+      ).not.toBeInTheDocument(),
+    );
+  });
 });
