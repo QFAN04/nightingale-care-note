@@ -5,9 +5,10 @@ from datetime import datetime, timezone
 from sqlalchemy import select
 from sqlalchemy.orm import Session, joinedload
 
+from app.auth.policies import highlight_scope_filter
 from app.models.audit import AuditEvent, FeedbackAction, ImportanceFeedback
 from app.models.clinical import ClinicalFact, Highlight, HighlightStatus
-from app.models.identity import Patient, User
+from app.models.identity import User
 
 
 class HighlightReviewAction(str, enum.Enum):
@@ -33,11 +34,10 @@ def review_highlight(
 ) -> Highlight:
     highlight = db.scalar(
         select(Highlight)
-        .join(Patient, Highlight.patient_id == Patient.id)
         .options(joinedload(Highlight.clinical_fact))
         .where(
             Highlight.id == highlight_id,
-            Patient.clinic_id == reviewer.clinic_id,
+            highlight_scope_filter(reviewer),
         )
     )
     if highlight is None:

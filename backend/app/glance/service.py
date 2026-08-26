@@ -6,6 +6,7 @@ from datetime import datetime, timezone
 from sqlalchemy import select
 from sqlalchemy.orm import Session, joinedload
 
+from app.auth.policies import can_view_unreviewed_context
 from app.glance.schemas import (
     CareStateResponse,
     GlanceDetails,
@@ -25,7 +26,7 @@ from app.models.clinical import (
     TaskPriority,
     TaskStatus,
 )
-from app.models.identity import Patient, User, UserRole
+from app.models.identity import Patient, User
 from app.models.timeline import Entry
 
 
@@ -38,7 +39,7 @@ def build_care_state(
 ) -> CareStateResponse:
     visible_statuses = (
         (HighlightStatus.ACCEPTED,)
-        if user.role is UserRole.PATIENT
+        if not can_view_unreviewed_context(user)
         else (HighlightStatus.ACCEPTED, HighlightStatus.SUGGESTED)
     )
     highlights = list(
@@ -76,7 +77,7 @@ def build_care_state(
 
     open_actions: list[GlanceItem] = []
     conflicts: list[GlanceItem] = []
-    if user.role is not UserRole.PATIENT:
+    if can_view_unreviewed_context(user):
         open_actions = _open_action_items(db, patient.id)
         conflicts = _conflict_items(db, patient.id)
 

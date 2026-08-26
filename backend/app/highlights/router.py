@@ -4,6 +4,7 @@ from typing import Annotated
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
 
+from app.auth.policies import can_review_highlights
 from app.dependencies import get_current_user, get_db_session
 from app.highlights.schemas import HighlightReviewRead, HighlightReviewerRead
 from app.highlights.service import (
@@ -12,7 +13,7 @@ from app.highlights.service import (
     HighlightReviewAction,
     review_highlight,
 )
-from app.models.identity import User, UserRole
+from app.models.identity import User
 
 
 router = APIRouter(prefix="/api/v1/highlights", tags=["highlights"])
@@ -44,7 +45,7 @@ def _review(
     session: Session,
     user: User,
 ) -> HighlightReviewRead:
-    if user.role is not UserRole.CLINICIAN:
+    if not can_review_highlights(user):
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Only clinicians can review highlight suggestions",

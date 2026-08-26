@@ -5,7 +5,8 @@ from pydantic import BaseModel
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
-from app.models.identity import User, UserRole
+from app.auth.policies import entry_visibility_filter
+from app.models.identity import User
 from app.models.timeline import (
     AuthorRole,
     ConsultSession,
@@ -41,8 +42,7 @@ def list_timeline_entries(
         .outerjoin(ConsultSession, Entry.provenance_id == ConsultSession.id)
         .where(Entry.patient_id == patient_id)
     )
-    if user.role is UserRole.PATIENT:
-        statement = statement.where(Entry.entry_type == EntryType.PATIENT_INSTRUCTION)
+    statement = statement.where(entry_visibility_filter(user))
 
     rows = session.execute(statement.order_by(occurred_at.desc(), Entry.id.desc())).all()
     return [
