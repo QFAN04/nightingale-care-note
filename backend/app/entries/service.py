@@ -8,8 +8,8 @@ from sqlalchemy import select, update
 from sqlalchemy.orm import Session
 
 from app.models.audit import AuditEvent, ChangeReason, EntryVersion
-from app.models.identity import User
-from app.models.timeline import Entry
+from app.models.identity import Patient, User, UserRole
+from app.models.timeline import AuthorRole, Entry, EntryType, ProvenanceType
 
 
 class EntryVersionConflictError(Exception):
@@ -21,6 +21,56 @@ class EntryVersionConflictError(Exception):
 
 class EntryVersionNotFoundError(Exception):
     pass
+
+
+def create_manual_entry(
+    db: Session,
+    patient: Patient,
+    actor: User,
+    content: str,
+) -> Entry:
+    role_fields = {
+        UserRole.STAFF: (AuthorRole.STAFF, EntryType.STAFF_NOTE),
+        UserRole.CLINICIAN: (AuthorRole.CLINICIAN, EntryType.CLINICIAN_NOTE),
+    }
+    author_role, entry_type = role_fields[actor.role]
+    entry = Entry(
+        patient=patient,
+        author=actor,
+        author_role=author_role,
+        entry_type=entry_type,
+        content=content,
+        current_version=1,
+        provenance_type=ProvenanceType.MANUAL,
+        provenance_id=None,
+    )
+    db.add(entry)
+    db.flush()
+    db.add(
+        EntryVersion(
+            entry=entry,
+            version_number=1,
+            content=content,
+            changed_by=actor,
+            change_reason=ChangeReason.CREATED,
+            source_version=None,
+            content_hash=_content_hash(content),
+        )
+    )
+    db.add(
+        AuditEvent(
+            clinic_id=actor.clinic_id,
+            patient_id=patient.id,
+            actor=actor,
+            action="entry.created",
+            resource_type="entry",
+            resource_id=entry.id,
+            event_metadata={"version": 1, "entry_type": entry_type.value},
+        )
+    )
+    db.commit()
+    db.refresh(entry)
+    return entry
 
 
 def update_entry(

@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 
 import { CareGlance } from "@/components/care-glance";
+import { AddNoteModal } from "@/components/add-note-modal";
 import { useDemoIdentity } from "@/components/demo-identity-context";
 import { ScribeModal } from "@/components/scribe-modal";
 import { TimelineCard } from "@/components/timeline-card";
@@ -20,6 +21,7 @@ const SARAH_PATIENT_ID = "00000000-0000-0000-0000-000000000002";
 export function CareNoteWorkspace() {
   const { identity } = useDemoIdentity();
   const [isScribeOpen, setIsScribeOpen] = useState(false);
+  const [isAddNoteOpen, setIsAddNoteOpen] = useState(false);
   const [timeline, setTimeline] = useState<TimelineItem[]>(sarahTimeline);
   const [glance, setGlance] = useState<GlanceSection[]>(sarahGlance);
   const [loadedUserId, setLoadedUserId] = useState<string | null>(null);
@@ -91,11 +93,16 @@ export function CareNoteWorkspace() {
             <h2 className="mt-2 text-3xl font-semibold tracking-[-0.04em] text-[#172522] sm:text-4xl">{sarahLim.name}</h2>
             <p className="mt-2 text-sm text-[#667773]">{sarahLim.detail}</p>
           </div>
-          {identity.role !== "admin" ? (
-            <button className="w-fit rounded-xl bg-[#176b5b] px-4 py-2.5 text-sm font-semibold text-white shadow-sm" onClick={() => setIsScribeOpen(true)} type="button">
-              New AI Scribe
-            </button>
-          ) : null}
+          <div className="flex flex-wrap gap-2">
+            {identity.role === "staff" || identity.role === "clinician" ? (
+              <button className="w-fit rounded-xl border border-[#b9d2ca] bg-white px-4 py-2.5 text-sm font-semibold text-[#176b5b] shadow-sm" onClick={() => setIsAddNoteOpen(true)} type="button">Add note</button>
+            ) : null}
+            {identity.role !== "admin" ? (
+              <button className="w-fit rounded-xl bg-[#176b5b] px-4 py-2.5 text-sm font-semibold text-white shadow-sm" onClick={() => setIsScribeOpen(true)} type="button">
+                New AI Scribe
+              </button>
+            ) : null}
+          </div>
         </div>
 
         <CareGlance
@@ -142,6 +149,7 @@ export function CareNoteWorkspace() {
         </section>
       </div>
       {isScribeOpen && identity.role !== "admin" ? <ScribeModal currentUserId={identity.id} onClose={() => setIsScribeOpen(false)} onComplete={() => loadRoleData(identity.id, identity.role)} patientId={SARAH_PATIENT_ID} role={identity.role} /> : null}
+      {isAddNoteOpen && (identity.role === "staff" || identity.role === "clinician") ? <AddNoteModal currentUserId={identity.id} onClose={() => setIsAddNoteOpen(false)} onComplete={() => loadRoleData(identity.id, identity.role)} patientId={SARAH_PATIENT_ID} role={identity.role} /> : null}
     </main>
   );
 }

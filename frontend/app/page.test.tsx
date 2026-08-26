@@ -333,6 +333,97 @@ describe("Nightingale application shell", () => {
     expect(screen.queryByRole("button", { name: "New AI Scribe" })).not.toBeInTheDocument();
   });
 
+  it("lets staff add a role-derived manual note and refreshes the timeline", async () => {
+    let noteCreated = false;
+    const fetchMock = vi.fn(async (url: string, options?: RequestInit) => {
+      if (options?.method === "POST" && url.endsWith("/entries")) {
+        noteCreated = true;
+        return {
+          ok: true,
+          json: async () => ({
+            id: "00000000-0000-0000-0000-000000000091",
+            patient_id: "00000000-0000-0000-0000-000000000002",
+            author_id: "00000000-0000-0000-0000-000000000004",
+            author_role: "staff",
+            entry_type: "staff_note",
+            content: "Patient confirmed that chest pressure is improving today.",
+            occurred_at: "2026-08-27T09:00:00Z",
+            provenance_type: "manual",
+            provenance_id: null,
+            current_version: 1,
+          }),
+        };
+      }
+      if (url.endsWith("/glance")) {
+        return {
+          ok: true,
+          json: async () => ({
+            patient: {
+              id: "00000000-0000-0000-0000-000000000002",
+              external_ref: "PAT-001",
+              display_name: "Sarah Lim",
+            },
+            generated_at: "2026-08-27T09:00:00Z",
+            critical: [],
+            recent_changes: [],
+            open_actions: [],
+            conflicts: [],
+          }),
+        };
+      }
+      return {
+        ok: true,
+        json: async () =>
+          noteCreated
+            ? [
+                {
+                  id: "00000000-0000-0000-0000-000000000091",
+                  patient_id: "00000000-0000-0000-0000-000000000002",
+                  author_id: "00000000-0000-0000-0000-000000000004",
+                  author_role: "staff",
+                  entry_type: "staff_note",
+                  content: "Patient confirmed that chest pressure is improving today.",
+                  occurred_at: "2026-08-27T09:00:00Z",
+                  provenance_type: "manual",
+                  provenance_id: null,
+                  current_version: 1,
+                },
+              ]
+            : [],
+      };
+    });
+    vi.stubGlobal("fetch", fetchMock);
+    render(<Home />);
+
+    fireEvent.change(screen.getByLabelText("Demo role"), {
+      target: { value: "staff" },
+    });
+    fireEvent.click(screen.getByRole("button", { name: "Add note" }));
+    expect(screen.getByRole("dialog", { name: "Add staff note" })).toBeInTheDocument();
+    fireEvent.change(screen.getByLabelText("Note content"), {
+      target: { value: "Patient confirmed that chest pressure is improving today." },
+    });
+    fireEvent.click(screen.getByRole("button", { name: "Save note" }));
+
+    await waitFor(() =>
+      expect(fetchMock).toHaveBeenCalledWith(
+        "/api/v1/patients/00000000-0000-0000-0000-000000000002/entries",
+        expect.objectContaining({
+          method: "POST",
+          headers: expect.objectContaining({
+            "X-Demo-User-ID": "00000000-0000-0000-0000-000000000004",
+          }),
+          body: JSON.stringify({
+            content: "Patient confirmed that chest pressure is improving today.",
+          }),
+        }),
+      ),
+    );
+    expect(
+      await screen.findByText("Patient confirmed that chest pressure is improving today."),
+    ).toBeInTheDocument();
+  });
+
   it("adds an @clinician comment to the staff note thread", async () => {
     const fetchMock = vi.fn().mockResolvedValue({
       ok: true,
