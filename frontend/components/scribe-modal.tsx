@@ -6,11 +6,12 @@ import { runScribe, type ScribeResult } from "@/lib/scribe-api";
 
 type ScribeModalProps = {
   patientId: string;
+  currentUserId: string;
   onClose: () => void;
   onComplete: (result: ScribeResult) => void;
 };
 
-export function ScribeModal({ patientId, onClose, onComplete }: ScribeModalProps) {
+export function ScribeModal({ currentUserId, patientId, onClose, onComplete }: ScribeModalProps) {
   const [transcript, setTranscript] = useState("");
   const [result, setResult] = useState<ScribeResult | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -21,7 +22,12 @@ export function ScribeModal({ patientId, onClose, onComplete }: ScribeModalProps
     setError(null);
     setIsSubmitting(true);
     try {
-      const nextResult = await runScribe(patientId, "doctor_patient", transcript);
+      const nextResult = await runScribe(
+        patientId,
+        "doctor_patient",
+        transcript,
+        currentUserId,
+      );
       setResult(nextResult);
       onComplete(nextResult);
     } catch (caught) {

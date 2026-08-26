@@ -1,8 +1,11 @@
 import { CareNoteWorkspace } from "@/components/care-note-workspace";
+import { DemoIdentityProvider } from "@/components/demo-identity-context";
+import { DemoRoleSwitcher } from "@/components/demo-role-switcher";
 
 export default function Home() {
   return (
-    <div className="min-h-screen bg-[#f4f8f6]">
+    <DemoIdentityProvider>
+      <div className="min-h-screen bg-[#f4f8f6]">
       <header className="sticky top-0 z-10 border-b border-[#dce6e2] bg-white/95 backdrop-blur">
         <div className="mx-auto flex h-16 max-w-[1440px] items-center justify-between px-5 sm:px-8">
           <div className="flex items-center gap-3">
@@ -26,13 +29,7 @@ export default function Home() {
             <span className="hidden text-xs font-medium uppercase tracking-[0.12em] text-[#758680] sm:inline">
               Synthetic demo
             </span>
-            <button
-              className="flex items-center gap-2 rounded-full border border-[#cfe0da] bg-[#f7fbf9] px-3 py-2 text-sm font-medium text-[#285f54]"
-              type="button"
-            >
-              <span aria-hidden="true" className="size-2 rounded-full bg-[#2d8b75]" />
-              Clinician view
-            </button>
+            <DemoRoleSwitcher />
           </div>
         </div>
       </header>
@@ -70,6 +67,7 @@ export default function Home() {
 
         <CareNoteWorkspace />
       </div>
-    </div>
+      </div>
+    </DemoIdentityProvider>
   );
 }

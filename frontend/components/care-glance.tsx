@@ -28,7 +28,13 @@ const sectionStyles: Record<GlanceSection["id"], { accent: string; badge: string
   },
 };
 
-export function CareGlance({ sections }: { sections: GlanceSection[] }) {
+export function CareGlance({
+  currentUserId,
+  sections,
+}: {
+  currentUserId: string;
+  sections: GlanceSection[];
+}) {
   const [visibleSections, setVisibleSections] = useState(sections);
   const [pendingId, setPendingId] = useState<string | null>(null);
   const [reviewError, setReviewError] = useState<string | null>(null);
@@ -37,7 +43,7 @@ export function CareGlance({ sections }: { sections: GlanceSection[] }) {
     setPendingId(highlightId);
     setReviewError(null);
     try {
-      const result = await reviewHighlight(highlightId, action);
+      const result = await reviewHighlight(highlightId, action, currentUserId);
       setVisibleSections((current) =>
         current.map((section) => ({
           ...section,

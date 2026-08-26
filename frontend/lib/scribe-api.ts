@@ -20,18 +20,17 @@ export type ScribeResult = {
   }>;
 };
 
-const clinicianDemoUserId = "00000000-0000-0000-0000-000000000005";
-
 export async function runScribe(
   patientId: string,
   interactionType: "doctor_patient",
   rawText: string,
+  currentUserId: string,
 ): Promise<ScribeResult> {
   const response = await fetch(`/api/v1/patients/${patientId}/scribe`, {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
-      "X-Demo-User-ID": clinicianDemoUserId,
+      "X-Demo-User-ID": currentUserId,
     },
     body: JSON.stringify({ interaction_type: interactionType, raw_text: rawText }),
   });

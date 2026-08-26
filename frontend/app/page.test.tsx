@@ -30,6 +30,17 @@ describe("Nightingale application shell", () => {
     expect(screen.getAllByRole("link", { name: "View source" })).not.toHaveLength(0);
   });
 
+  it("switches the demo identity in the application header", () => {
+    render(<Home />);
+
+    const roleSwitcher = screen.getByLabelText("Demo role");
+    expect(roleSwitcher).toHaveValue("clinician");
+    fireEvent.change(roleSwitcher, { target: { value: "staff" } });
+
+    expect(roleSwitcher).toHaveValue("staff");
+    expect(screen.getByText("Staff view")).toBeInTheDocument();
+  });
+
   it("renders the explainable four-section Care Glance with source jumps", () => {
     render(<Home />);
 
@@ -98,7 +109,12 @@ describe("Nightingale application shell", () => {
     await waitFor(() => expect(fetchMock).toHaveBeenCalledOnce());
     expect(fetchMock).toHaveBeenCalledWith(
       "/api/v1/highlights/00000000-0000-0000-0000-000000000029/accept",
-      expect.objectContaining({ method: "POST" }),
+      expect.objectContaining({
+        method: "POST",
+        headers: expect.objectContaining({
+          "X-Demo-User-ID": "00000000-0000-0000-0000-000000000005",
+        }),
+      }),
     );
     await waitFor(() =>
       expect(within(recent).getByText(/Accepted by/)).toHaveTextContent(
@@ -146,6 +162,9 @@ describe("Nightingale application shell", () => {
       expect.stringMatching(/\/api\/v1\/patients\/.*\/scribe$/),
       expect.objectContaining({
         method: "POST",
+        headers: expect.objectContaining({
+          "X-Demo-User-ID": "00000000-0000-0000-0000-000000000005",
+        }),
         body: JSON.stringify({
           interaction_type: "doctor_patient",
           raw_text: "Doctor: How are you? Patient: chest pressure felt stronger",

@@ -10,15 +10,14 @@ export type HighlightReviewResult = {
   reviewed_at: string;
 };
 
-const clinicianDemoUserId = "00000000-0000-0000-0000-000000000005";
-
 export async function reviewHighlight(
   highlightId: string,
   action: HighlightReviewAction,
+  currentUserId: string,
 ): Promise<HighlightReviewResult> {
   const response = await fetch(`/api/v1/highlights/${highlightId}/${action}`, {
     method: "POST",
-    headers: { "X-Demo-User-ID": clinicianDemoUserId },
+    headers: { "X-Demo-User-ID": currentUserId },
   });
   if (!response.ok) {
     const body = (await response.json().catch(() => null)) as { detail?: string } | null;
