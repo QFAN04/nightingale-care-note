@@ -9,7 +9,14 @@ from sqlalchemy.pool import StaticPool
 
 from app.ai.service import ScribeProcessingError, process_consult_session
 from app.models.base import Base
-from app.models.clinical import ClinicalFact, ReviewStatus, Task, TaskStatus
+from app.models.clinical import (
+    ClinicalFact,
+    Highlight,
+    HighlightCategory,
+    ReviewStatus,
+    Task,
+    TaskStatus,
+)
 from app.models.identity import Clinic, Patient, User, UserRole
 from app.models.timeline import (
     ConsultSession,
@@ -117,6 +124,10 @@ def test_success_redacts_before_provider_and_persists_suggested_records() -> Non
     assert fact.source_start == consult.redacted_transcript.index(fact.source_quote)
     assert task is not None and task.status is TaskStatus.OPEN
     assert task.source_fact_id == fact.id
+    assert set(db.scalars(select(Highlight.category))) == {
+        HighlightCategory.RECENT_CHANGE,
+        HighlightCategory.OPEN_ACTION,
+    }
     db.close()
 
 
@@ -159,6 +170,7 @@ def test_second_invalid_output_marks_session_failed_without_partial_records() ->
     assert db.scalar(select(func.count()).select_from(Entry)) == 0
     assert db.scalar(select(func.count()).select_from(ClinicalFact)) == 0
     assert db.scalar(select(func.count()).select_from(Task)) == 0
+    assert db.scalar(select(func.count()).select_from(Highlight)) == 0
     db.close()
 
 
@@ -173,4 +185,28 @@ def test_completed_session_cannot_be_processed_twice() -> None:
 
     assert second_provider.calls == []
     assert db.scalar(select(func.count()).select_from(Entry)) == 1
+    db.close()
+
+
+def test_highlight_generation_failure_marks_session_failed_atomically(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    db, consult = make_session()
+    provider = SequenceProvider([valid_response()])
+
+    def fail_generation(*_args: object, **_kwargs: object) -> None:
+        raise RuntimeError("simulated ranking failure")
+
+    monkeypatch.setattr("app.ai.service.generate_highlight_suggestions", fail_generation)
+
+    with pytest.raises(ScribeProcessingError, match="persistence failed"):
+        asyncio.run(process_consult_session(db, consult.id, provider))
+
+    db.refresh(consult)
+    assert consult.processing_status is ProcessingStatus.FAILED
+    assert consult.processing_error == "AI output persistence failed"
+    assert db.scalar(select(func.count()).select_from(Entry)) == 0
+    assert db.scalar(select(func.count()).select_from(ClinicalFact)) == 0
+    assert db.scalar(select(func.count()).select_from(Task)) == 0
+    assert db.scalar(select(func.count()).select_from(Highlight)) == 0
     db.close()

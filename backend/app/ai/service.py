@@ -1,6 +1,7 @@
 """Atomic orchestration for redaction, extraction, validation, and persistence."""
 
 import uuid
+from datetime import datetime, timezone
 
 from pydantic import ValidationError
 from sqlalchemy.orm import Session
@@ -9,6 +10,7 @@ from app.ai.prompts.scribe import build_scribe_system_prompt
 from app.ai.providers.base import ScribeProvider
 from app.ai.redaction import redact_phi
 from app.ai.schemas import ScribeResult
+from app.glance.generation import generate_highlight_suggestions
 from app.models.clinical import (
     ClinicalFact,
     ReviewStatus,
@@ -102,6 +104,24 @@ async def process_consult_session(
     if output is None:  # Defensive guard; both loop exits assign or raise.
         raise ScribeProcessingError("AI output processing ended unexpectedly")
 
+    try:
+        _persist_validated_output(db, consult, output)
+    except Exception as exc:
+        db.rollback()
+        failed_consult = db.get(ConsultSession, consult_session_id)
+        if failed_consult is not None:
+            failed_consult.processing_status = ProcessingStatus.FAILED
+            failed_consult.processing_error = "AI output persistence failed"
+            db.commit()
+        raise ScribeProcessingError("AI output persistence failed") from exc
+    return output
+
+
+def _persist_validated_output(
+    db: Session,
+    consult: ConsultSession,
+    output: ScribeResult,
+) -> None:
     entry = Entry(
         patient=consult.patient,
         author_role=AuthorRole.SYSTEM,
@@ -147,10 +167,15 @@ async def process_consult_session(
             )
         )
 
+    db.flush()
+    generate_highlight_suggestions(
+        db,
+        consult.patient_id,
+        now=datetime.now(timezone.utc),
+    )
     consult.processing_status = ProcessingStatus.COMPLETED
     consult.processing_error = None
     db.commit()
-    return output
 
 
 def _validate_source_quotes(output: ScribeResult, transcript: str) -> None:
