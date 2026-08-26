@@ -1,16 +1,16 @@
 # Nightingale 72HR Build 演示脚本
 
-本脚本严格使用 Sarah Lim 合成故事，目标时长约 6–8 分钟。禁止替换为真实患者资料。
+本脚本严格使用 Sarah Lim 合成故事，目标时长约 6–8 分钟。禁止替换为真实患者资料。主演示全部通过 Nightingale UI 完成。
 
 ## 演示前准备
 
 1. 使用一份全新、已完成 Alembic migration 的演示数据库运行 seed，确保 clinician note `00000000-0000-0000-0000-00000000000a` 的 `current_version` 为 `1`。
 2. 启动 FastAPI（`http://127.0.0.1:8000`）和 Next.js（`http://localhost:3000`）。
 3. 确认本地 `backend/.env` 已配置真实 `DEEPSEEK_API_KEY` 与 `DEEPSEEK_MODEL=deepseek-v4-flash`；不要在屏幕、终端或录屏中展示 Key。
-4. 浏览器准备两个标签页：Nightingale 首页与 `http://127.0.0.1:8000/docs`。
+4. 浏览器打开 Nightingale 首页；不要在录屏中打开 `.env`、终端环境变量或 Supabase 凭据页面。
 5. 首页身份选择为 **Clinician view / Dr Priya Nair**。
 
-## 15 步主演示
+## 16 步主演示
 
 ### 1. 打开 Sarah
 
@@ -70,72 +70,49 @@ Patient: I have a severe latex allergy and previously had anaphylaxis.
 
 如需演示解决动作，在 resolution note 输入 `Medication dose verified as 20 mg.`，再点击 **Resolve conflict**；否则保留冲突供讲解即可。
 
-### 9. 展示 staff comment
+### 9. Staff 创建人工记录
+
+将身份切换为 **Staff view / Amanda Wong**，点击 **Add note**，输入：
+
+```text
+Patient confirmed that chest pressure is improving today. Clinician review remains requested before closing follow-up.
+```
+
+点击 **Save note**。确认新记录出现在 Timeline 顶部，并标记为 Staff note。说明客户端只发送正文，后端根据当前身份派生 author、entry type、clinic scope 与 manual provenance，同时写入 version 1 快照和 metadata-only audit event。
+
+### 10. 展示 staff comment
 
 滚动到 2026-08-24 的 **Follow-up escalated** staff note。展示 Amanda Wong 的 `@clinician` 评论与内部协作线程；可回复 `@clinician Reviewed during today's consultation.`。
 
-### 10. 创建 revision
+### 11. 在 UI 创建 revision
 
-切换到 FastAPI `/docs`，展开：
+切回 **Clinician view / Dr Priya Nair**。在 2026-04-15 的 **Medication and allergy context** 卡片点击 **Version history**。
 
-```text
-PATCH /api/v1/entries/{entry_id}
-```
-
-参数：
-
-- `entry_id`: `00000000-0000-0000-0000-00000000000a`
-- Header `X-Demo-User-ID`: `00000000-0000-0000-0000-000000000005`
-
-Request body 必须发送完整新正文：
-
-```json
-{
-  "content": "Penicillin allergy confirmed; previous reaction was urticaria. Atorvastatin 20 mg once daily remains the clinician-confirmed medication dose. Review again in four weeks.",
-  "expected_version": 1
-}
-```
-
-执行后确认 `current_version` 为 `2`。解释 `expected_version` 防止并发静默覆盖；不匹配时返回 `409 version_conflict`。
-
-### 11. 查看 explainable diff
-
-在 `/docs` 执行：
+在 **Current note content** 中保留原文并追加：
 
 ```text
-GET /api/v1/entries/00000000-0000-0000-0000-00000000000a/diff?from_version=1&to_version=2
+Review again in four weeks.
 ```
 
-使用同一 clinician Header。响应应把原文标为 `unchanged`，把 `Review again in four weeks.` 标为 `added`。
+点击 **Save revision**。重新打开 Version history，确认出现 Version 2。解释客户端发送 `expected_version=1`，防止并发静默覆盖；若服务器已有更新，UI 会提示已重新加载最新版而不会覆盖。
 
-### 12. Revert 但不删除历史
+### 12. 查看 explainable diff
 
-在 `/docs` 执行：
+在 Version history 中选择 **From v1**、**To v2**，点击 **Compare versions**。确认原内容保持 unchanged，新增的 `Review again in four weeks.` 被显示为 added。
 
-```text
-POST /api/v1/entries/00000000-0000-0000-0000-00000000000a/revert
-```
+### 13. Revert 但不删除历史
 
-Header 仍为 clinician，body：
+点击 **Revert to version 1** 并确认。重新打开 Version history，确认出现 Version 3，正文恢复到 Version 1，而 Version 2 仍保留。说明 revert 是追加完整快照，不执行破坏性删除。
 
-```json
-{
-  "target_version": 1,
-  "expected_version": 2
-}
-```
-
-确认响应为 `new_version: 3`、`reverted_from: 1`。说明 revert 是追加第三个完整快照，版本 2 和 audit event 都被保留，不执行破坏性删除。
-
-### 13. 切换 Patient role
+### 14. 切换 Patient role
 
 回到 Nightingale 首页，将右上角身份切换为 **Patient view / Sarah Lim**。
 
-### 14. 内部信息消失
+### 15. 内部信息消失
 
 等待角色范围 API 重新加载。确认 staff note、内部评论、AI suggested Highlight、open action 与未解决 conflict 不再可见；患者只能看到自己的允许范围与已接受内容。强调这是后端 RBAC 过滤，不只是前端隐藏。
 
-### 15. 解释 bounded self-learning
+### 16. 解释 bounded self-learning
 
 切回 Clinician view，以刚才的 Accept 收尾：
 
@@ -147,6 +124,6 @@ Header 仍为 clinician，body：
 ## 失败时的诚实处理
 
 - DeepSeek 超时、502 或结构验证失败：保留错误画面，说明系统在一次修复重试后 fail closed；不要改用假响应冒充真实调用。
-- Revision 返回 409：说明数据库不是全新演示状态；先读取 Timeline 的 `current_version`，不要盲目重复 PATCH/Revert。
+- Revision 显示 stale-version 提示：说明数据库不是全新演示状态；让 UI 重新加载最新版，不要盲目重复 Save/Revert。
 - Patient 切换后仍出现内部信息：立即停止录制，按 RBAC 缺陷处理，不把前端视觉隐藏当作通过。
 - 任何真实 Key、数据库密码或未脱敏患者资料出现在屏幕上：停止并重录。

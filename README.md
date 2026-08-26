@@ -159,6 +159,14 @@ npm run dev
 
 打开 `http://localhost:3000`。前端通过同源 `/api/*` 请求转发到 `BACKEND_API_URL`。
 
+## Demo and submission
+
+- 完整的 6–8 分钟录制流程见 [`docs/demo-script.md`](docs/demo-script.md)。主演示全部通过 Nightingale UI 完成，不需要使用 Swagger 修改记录。
+- Demo Video：**待实际录制并上传后，在此填写最终链接**。在链接可访问前，不应把项目标记为 submission-ready。
+- 提交材料还包括 [`output/pdf/nightingale-technical-brief.pdf`](output/pdf/nightingale-technical-brief.pdf) 与 [`ATTRIBUTION.txt`](ATTRIBUTION.txt)。
+
+演示时，Staff/Clinician 可使用 **Add note** 创建角色派生的人工记录；Timeline 中的 **Version history** 可查看完整快照、比较任意两个版本、保存新 revision，并以追加新快照的方式 revert。AI Scribe 的 interaction type 由当前身份自动锁定，Admin 不显示 Scribe 操作。
+
 ## Seed synthetic data
 
 ```powershell
@@ -212,8 +220,8 @@ X-Demo-User-ID: <uuid>
 | Role | 第一版能力 |
 |---|---|
 | Patient | 只访问自己的患者范围；只看 patient instruction 与已接受的 Glance 内容；可发起 AI-patient Scribe |
-| Staff | 查看同 clinic 时间线；编辑 staff note；内部评论；发起 nurse-patient Scribe |
-| Clinician | 查看完整同 clinic 上下文；编辑 clinician note；审核 Highlight；解决 Conflict；发起 doctor-patient Scribe |
+| Staff | 查看同 clinic 时间线；新增/编辑 staff note；查看版本、diff/revert 自己类型的记录；内部评论；发起 nurse-patient Scribe |
+| Clinician | 查看完整同 clinic 上下文；新增/编辑 clinician note；查看版本、diff/revert 自己类型的记录；审核 Highlight；解决 Conflict；发起 doctor-patient Scribe |
 | Admin | 第一版只读，不拥有临床审核或编辑权限 |
 
 跨 clinic 查询返回 404，减少资源枚举泄露。前端隐藏不是授权控制。
