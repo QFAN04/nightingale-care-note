@@ -1,4 +1,9 @@
+"use client";
+
+import { useState } from "react";
+
 import type { GlanceSection } from "@/lib/demo-data";
+import { reviewHighlight, type HighlightReviewAction } from "@/lib/highlight-api";
 
 const sectionStyles: Record<GlanceSection["id"], { accent: string; badge: string; dot: string }> = {
   critical: {
@@ -24,6 +29,40 @@ const sectionStyles: Record<GlanceSection["id"], { accent: string; badge: string
 };
 
 export function CareGlance({ sections }: { sections: GlanceSection[] }) {
+  const [visibleSections, setVisibleSections] = useState(sections);
+  const [pendingId, setPendingId] = useState<string | null>(null);
+  const [reviewError, setReviewError] = useState<string | null>(null);
+
+  async function handleReview(highlightId: string, action: HighlightReviewAction) {
+    setPendingId(highlightId);
+    setReviewError(null);
+    try {
+      const result = await reviewHighlight(highlightId, action);
+      setVisibleSections((current) =>
+        current.map((section) => ({
+          ...section,
+          items:
+            result.status === "rejected"
+              ? section.items.filter((item) => item.id !== highlightId)
+              : section.items.map((item) =>
+                  item.id === highlightId
+                    ? {
+                        ...item,
+                        status: "Accepted",
+                        reviewable: false,
+                        acceptedBy: result.reviewed_by.display_name,
+                      }
+                    : item,
+                ),
+        })),
+      );
+    } catch (error) {
+      setReviewError(error instanceof Error ? error.message : "The review could not be saved.");
+    } finally {
+      setPendingId(null);
+    }
+  }
+
   return (
     <section aria-labelledby="care-glance-heading" className="mt-8">
       <div className="flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
@@ -44,7 +83,7 @@ export function CareGlance({ sections }: { sections: GlanceSection[] }) {
       </div>
 
       <div className="mt-5 grid gap-4 md:grid-cols-2">
-        {sections.map((section) => {
+        {visibleSections.map((section) => {
           const styles = sectionStyles[section.id];
           const headingId = `glance-${section.id}-heading`;
           return (
@@ -84,6 +123,37 @@ export function CareGlance({ sections }: { sections: GlanceSection[] }) {
                       {item.riskReason}
                     </p>
 
+                    {item.reviewable ? (
+                      <div className="mt-3 rounded-lg border border-[#e7dded] bg-[#f8f4fb] p-3">
+                        <p className="text-[10px] font-semibold uppercase tracking-[0.1em] text-[#745390]">
+                          ◇ AI suggestion
+                        </p>
+                        <div className="mt-2 flex gap-2">
+                          <button
+                            className="rounded-lg bg-[#176b5b] px-3 py-1.5 text-xs font-semibold text-white disabled:opacity-60"
+                            disabled={pendingId === item.id}
+                            onClick={() => void handleReview(item.id, "accept")}
+                            type="button"
+                          >
+                            Accept
+                          </button>
+                          <button
+                            className="rounded-lg border border-[#d4dfdb] bg-white px-3 py-1.5 text-xs font-semibold text-[#536660] disabled:opacity-60"
+                            disabled={pendingId === item.id}
+                            onClick={() => void handleReview(item.id, "reject")}
+                            type="button"
+                          >
+                            Reject
+                          </button>
+                        </div>
+                      </div>
+                    ) : null}
+                    {item.acceptedBy ? (
+                      <p className="mt-3 text-xs font-semibold text-[#176b5b]">
+                        ✓ Accepted by {item.acceptedBy}
+                      </p>
+                    ) : null}
+
                     <details className="group mt-3 border-t border-[#e4ece9] pt-3">
                       <summary className="cursor-pointer list-none text-xs font-semibold text-[#176b5b] marker:content-none">
                         <span className="flex items-center justify-between">
@@ -119,6 +189,11 @@ export function CareGlance({ sections }: { sections: GlanceSection[] }) {
           );
         })}
       </div>
+      {reviewError ? (
+        <p className="mt-3 text-sm text-[#9b413b]" role="alert">
+          {reviewError}
+        </p>
+      ) : null}
     </section>
   );
 }

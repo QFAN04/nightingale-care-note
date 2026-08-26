@@ -20,6 +20,8 @@ export type GlanceItem = {
   evidence: string;
   details: string[];
   sourceId: string;
+  reviewable?: boolean;
+  acceptedBy?: string;
 };
 
 export type GlanceSection = {
@@ -59,13 +61,14 @@ export const sarahGlance: GlanceSection[] = [
     eyebrow: "Needs clinical review",
     items: [
       {
-        id: "glance-chest-pressure",
+        id: "00000000-0000-0000-0000-000000000029",
         title: "Worsening chest pressure",
         status: "Suggested",
         riskReason: "High-risk symptom reported recently; clinical follow-up remains unresolved.",
         evidence: "Last night the chest pressure felt stronger than before.",
         details: ["Risk: high", "Review: pending"],
         sourceId: "entry-aug-23",
+        reviewable: true,
       },
     ],
   },

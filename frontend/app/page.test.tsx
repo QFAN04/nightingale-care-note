@@ -75,6 +75,39 @@ describe("Nightingale application shell", () => {
     );
   });
 
+  it("lets a clinician accept an AI suggestion and shows who reviewed it", async () => {
+    const fetchMock = vi.fn().mockResolvedValue({
+      ok: true,
+      json: async () => ({
+        id: "00000000-0000-0000-0000-000000000029",
+        status: "accepted",
+        reviewed_by: {
+          id: "00000000-0000-0000-0000-000000000005",
+          display_name: "Dr Priya Nair",
+        },
+        reviewed_at: "2026-08-26T05:00:00Z",
+      }),
+    });
+    vi.stubGlobal("fetch", fetchMock);
+    render(<Home />);
+
+    const recent = screen.getByRole("region", { name: "Recent changes" });
+    expect(within(recent).getByText(/AI suggestion/)).toBeInTheDocument();
+    fireEvent.click(within(recent).getByRole("button", { name: "Accept" }));
+
+    await waitFor(() => expect(fetchMock).toHaveBeenCalledOnce());
+    expect(fetchMock).toHaveBeenCalledWith(
+      "/api/v1/highlights/00000000-0000-0000-0000-000000000029/accept",
+      expect.objectContaining({ method: "POST" }),
+    );
+    await waitFor(() =>
+      expect(within(recent).getByText(/Accepted by/)).toHaveTextContent(
+        "Accepted by Dr Priya Nair",
+      ),
+    );
+    expect(within(recent).queryByRole("button", { name: "Accept" })).not.toBeInTheDocument();
+  });
+
   it("runs the frozen AI scribe modal and refreshes the timeline", async () => {
     const fetchMock = vi.fn().mockResolvedValue({
       ok: true,
