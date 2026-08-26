@@ -5,6 +5,7 @@ from typing import Annotated
 from pydantic import BaseModel, ConfigDict, Field, StringConstraints, model_validator
 
 from app.models.clinical import FactType, PersistenceType, RiskLevel, TaskPriority
+from app.models.timeline import InteractionType
 
 
 NonEmptyText = Annotated[str, StringConstraints(strip_whitespace=True, min_length=1)]
@@ -36,6 +37,11 @@ class SuggestedTask(StrictAIModel):
     description: NonEmptyText
     priority: TaskPriority
     source_quote: NonEmptyText
+
+
+class ScribeRequest(StrictAIModel):
+    interaction_type: InteractionType
+    raw_text: NonEmptyText
 
 
 class ScribeResult(StrictAIModel):
