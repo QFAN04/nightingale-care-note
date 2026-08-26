@@ -3,19 +3,40 @@
 import { FormEvent, useState } from "react";
 
 import { runScribe, type ScribeResult } from "@/lib/scribe-api";
+import type { DemoRole } from "@/lib/demo-identities";
 
 type ScribeModalProps = {
   patientId: string;
   currentUserId: string;
+  role: Exclude<DemoRole, "admin">;
   onClose: () => void;
   onComplete: (result: ScribeResult) => void | Promise<void>;
 };
 
-export function ScribeModal({ currentUserId, patientId, onClose, onComplete }: ScribeModalProps) {
+const interactionByRole = {
+  clinician: {
+    type: "doctor_patient" as const,
+    label: "Doctor–patient consultation",
+    placeholder: "Doctor: ...\nPatient: ...",
+  },
+  staff: {
+    type: "nurse_patient" as const,
+    label: "Nurse–patient consultation",
+    placeholder: "Nurse: ...\nPatient: ...",
+  },
+  patient: {
+    type: "ai_patient" as const,
+    label: "AI–patient session",
+    placeholder: "AI: ...\nPatient: ...",
+  },
+};
+
+export function ScribeModal({ currentUserId, patientId, role, onClose, onComplete }: ScribeModalProps) {
   const [transcript, setTranscript] = useState("");
   const [result, setResult] = useState<ScribeResult | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const interaction = interactionByRole[role];
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -24,7 +45,7 @@ export function ScribeModal({ currentUserId, patientId, onClose, onComplete }: S
     try {
       const nextResult = await runScribe(
         patientId,
-        "doctor_patient",
+        interaction.type,
         transcript,
         currentUserId,
       );
@@ -62,9 +83,10 @@ export function ScribeModal({ currentUserId, patientId, onClose, onComplete }: S
             Interaction type
             <select
               className="mt-2 w-full rounded-xl border border-[#cddcd7] bg-[#f9fbfa] px-3 py-2.5 font-normal text-[#263b36]"
-              defaultValue="doctor_patient"
+              disabled
+              value={interaction.type}
             >
-              <option value="doctor_patient">Doctor–patient consultation</option>
+              <option value={interaction.type}>{interaction.label}</option>
             </select>
           </label>
 
@@ -73,7 +95,7 @@ export function ScribeModal({ currentUserId, patientId, onClose, onComplete }: S
             <textarea
               className="mt-2 min-h-40 w-full resize-y rounded-xl border border-[#cddcd7] bg-[#f9fbfa] px-3 py-3 font-normal leading-6 text-[#263b36] outline-none focus:border-[#2d8b75] focus:ring-2 focus:ring-[#cde7df]"
               onChange={(event) => setTranscript(event.target.value)}
-              placeholder={"Doctor: ...\nPatient: ..."}
+              placeholder={interaction.placeholder}
               required
               value={transcript}
             />

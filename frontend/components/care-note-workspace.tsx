@@ -91,9 +91,11 @@ export function CareNoteWorkspace() {
             <h2 className="mt-2 text-3xl font-semibold tracking-[-0.04em] text-[#172522] sm:text-4xl">{sarahLim.name}</h2>
             <p className="mt-2 text-sm text-[#667773]">{sarahLim.detail}</p>
           </div>
-          <button className="w-fit rounded-xl bg-[#176b5b] px-4 py-2.5 text-sm font-semibold text-white shadow-sm" onClick={() => setIsScribeOpen(true)} type="button">
-            New AI Scribe
-          </button>
+          {identity.role !== "admin" ? (
+            <button className="w-fit rounded-xl bg-[#176b5b] px-4 py-2.5 text-sm font-semibold text-white shadow-sm" onClick={() => setIsScribeOpen(true)} type="button">
+              New AI Scribe
+            </button>
+          ) : null}
         </div>
 
         <CareGlance
@@ -139,7 +141,7 @@ export function CareNoteWorkspace() {
           )}
         </section>
       </div>
-      {isScribeOpen ? <ScribeModal currentUserId={identity.id} onClose={() => setIsScribeOpen(false)} onComplete={() => loadRoleData(identity.id, identity.role)} patientId={SARAH_PATIENT_ID} /> : null}
+      {isScribeOpen && identity.role !== "admin" ? <ScribeModal currentUserId={identity.id} onClose={() => setIsScribeOpen(false)} onComplete={() => loadRoleData(identity.id, identity.role)} patientId={SARAH_PATIENT_ID} role={identity.role} /> : null}
     </main>
   );
 }

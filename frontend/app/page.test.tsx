@@ -261,6 +261,78 @@ describe("Nightingale application shell", () => {
     expect(screen.getByText("Added to the top of the timeline")).toBeInTheDocument();
   });
 
+  it.each([
+    ["staff", "nurse_patient", "Nurse–patient consultation"],
+    ["patient", "ai_patient", "AI–patient session"],
+  ])(
+    "uses the role-authorized scribe interaction for %s",
+    async (role, interactionType, interactionLabel) => {
+      const fetchMock = vi.fn(async (url: string, options?: RequestInit) => {
+        if (options?.method === "POST") {
+          return {
+            ok: true,
+            json: async () => ({ summary: "Summary", facts: [], tasks: [] }),
+          };
+        }
+        if (url.endsWith("/glance")) {
+          return {
+            ok: true,
+            json: async () => ({
+              patient: {
+                id: "00000000-0000-0000-0000-000000000002",
+                external_ref: "PAT-001",
+                display_name: "Sarah Lim",
+              },
+              generated_at: "2026-08-26T10:00:00Z",
+              critical: [],
+              recent_changes: [],
+              open_actions: [],
+              conflicts: [],
+            }),
+          };
+        }
+        return { ok: true, json: async () => [] };
+      });
+      vi.stubGlobal("fetch", fetchMock);
+      render(<Home />);
+
+      fireEvent.change(screen.getByLabelText("Demo role"), {
+        target: { value: role },
+      });
+      fireEvent.click(screen.getByRole("button", { name: "New AI Scribe" }));
+
+      expect(screen.getByLabelText("Interaction type")).toHaveValue(interactionType);
+      expect(screen.getByLabelText("Interaction type")).toBeDisabled();
+      expect(screen.getByText(interactionLabel)).toBeInTheDocument();
+      fireEvent.change(screen.getByLabelText("Transcript"), {
+        target: { value: "Synthetic conversation" },
+      });
+      fireEvent.click(screen.getByRole("button", { name: "Generate" }));
+
+      await waitFor(() =>
+        expect(fetchMock).toHaveBeenCalledWith(
+          expect.stringMatching(/\/api\/v1\/patients\/.*\/scribe$/),
+          expect.objectContaining({
+            body: JSON.stringify({
+              interaction_type: interactionType,
+              raw_text: "Synthetic conversation",
+            }),
+          }),
+        ),
+      );
+    },
+  );
+
+  it("hides AI Scribe from the admin role", () => {
+    render(<Home />);
+
+    fireEvent.change(screen.getByLabelText("Demo role"), {
+      target: { value: "admin" },
+    });
+
+    expect(screen.queryByRole("button", { name: "New AI Scribe" })).not.toBeInTheDocument();
+  });
+
   it("adds an @clinician comment to the staff note thread", async () => {
     const fetchMock = vi.fn().mockResolvedValue({
       ok: true,

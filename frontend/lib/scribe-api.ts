@@ -22,7 +22,7 @@ export type ScribeResult = {
 
 export async function runScribe(
   patientId: string,
-  interactionType: "doctor_patient",
+  interactionType: "doctor_patient" | "nurse_patient" | "ai_patient",
   rawText: string,
   currentUserId: string,
 ): Promise<ScribeResult> {
