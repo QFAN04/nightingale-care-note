@@ -9,7 +9,7 @@ from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.models.base import Base
 from app.models.clinical import Highlight
-from app.models.identity import Clinic, Patient, User
+from app.models.identity import Clinic, Patient, User, UserRole
 from app.models.timeline import Entry, enum_column
 
 
@@ -48,6 +48,9 @@ class Comment(Base):
         Uuid, ForeignKey("comments.id", ondelete="RESTRICT"), nullable=True
     )
     content: Mapped[str] = mapped_column(Text, nullable=False)
+    mentioned_role: Mapped[UserRole | None] = mapped_column(
+        enum_column(UserRole, "comment_mentioned_role"), nullable=True
+    )
     resolved: Mapped[bool] = mapped_column(
         Boolean, nullable=False, default=False, server_default="0"
     )

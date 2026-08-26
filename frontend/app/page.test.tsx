@@ -176,4 +176,93 @@ describe("Nightingale application shell", () => {
     expect(screen.getByText("chest pressure")).toBeInTheDocument();
     expect(screen.getByText("Added to the top of the timeline")).toBeInTheDocument();
   });
+
+  it("adds an @clinician comment to the staff note thread", async () => {
+    const fetchMock = vi.fn().mockResolvedValue({
+      ok: true,
+      json: async () => ({
+        id: "00000000-0000-0000-0000-000000000061",
+        entry_id: "00000000-0000-0000-0000-00000000000d",
+        content: "@clinician Reviewed during today's consultation.",
+        mentioned_role: "clinician",
+        author: {
+          id: "00000000-0000-0000-0000-000000000005",
+          display_name: "Dr Priya Nair",
+        },
+        resolved: false,
+        resolved_by: null,
+        resolved_at: null,
+        created_at: "2026-08-26T06:00:00Z",
+      }),
+    });
+    vi.stubGlobal("fetch", fetchMock);
+    render(<Home />);
+
+    const staffCard = screen.getByRole("heading", { name: "Follow-up escalated" }).closest("article");
+    expect(staffCard).not.toBeNull();
+    expect(within(staffCard!).getByText(/Please review the persistent chest pressure/)).toBeInTheDocument();
+    fireEvent.change(within(staffCard!).getByLabelText("New comment"), {
+      target: { value: "@clinician Reviewed during today's consultation." },
+    });
+    fireEvent.click(within(staffCard!).getByRole("button", { name: "Add comment" }));
+
+    await waitFor(() => expect(fetchMock).toHaveBeenCalledOnce());
+    expect(fetchMock).toHaveBeenCalledWith(
+      "/api/v1/entries/00000000-0000-0000-0000-00000000000d/comments",
+      expect.objectContaining({
+        method: "POST",
+        headers: expect.objectContaining({
+          "X-Demo-User-ID": "00000000-0000-0000-0000-000000000005",
+        }),
+        body: JSON.stringify({
+          content: "@clinician Reviewed during today's consultation.",
+        }),
+      }),
+    );
+    expect(
+      await within(staffCard!).findByText("@clinician Reviewed during today's consultation."),
+    ).toBeInTheDocument();
+  });
+
+  it("resolves an open care-team comment", async () => {
+    const fetchMock = vi.fn().mockResolvedValue({
+      ok: true,
+      json: async () => ({
+        id: "00000000-0000-0000-0000-00000000003c",
+        entry_id: "00000000-0000-0000-0000-00000000000d",
+        content: "@clinician Please review the persistent chest pressure before today's consult.",
+        mentioned_role: "clinician",
+        author: {
+          id: "00000000-0000-0000-0000-000000000004",
+          display_name: "Amanda Wong",
+        },
+        resolved: true,
+        resolved_by: {
+          id: "00000000-0000-0000-0000-000000000005",
+          display_name: "Dr Priya Nair",
+        },
+        resolved_at: "2026-08-26T06:10:00Z",
+        created_at: "2026-08-24T09:05:00Z",
+      }),
+    });
+    vi.stubGlobal("fetch", fetchMock);
+    render(<Home />);
+
+    const staffCard = screen.getByRole("heading", { name: "Follow-up escalated" }).closest("article");
+    expect(staffCard).not.toBeNull();
+    fireEvent.click(within(staffCard!).getByRole("button", { name: "Resolve comment" }));
+
+    await waitFor(() => expect(fetchMock).toHaveBeenCalledOnce());
+    expect(fetchMock).toHaveBeenCalledWith(
+      "/api/v1/comments/00000000-0000-0000-0000-00000000003c/resolve",
+      expect.objectContaining({
+        method: "POST",
+        headers: expect.objectContaining({
+          "X-Demo-User-ID": "00000000-0000-0000-0000-000000000005",
+        }),
+      }),
+    );
+    expect(await within(staffCard!).findByText("Resolved by Dr Priya Nair")).toBeInTheDocument();
+    expect(within(staffCard!).queryByRole("button", { name: "Resolve comment" })).not.toBeInTheDocument();
+  });
 });

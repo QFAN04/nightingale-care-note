@@ -1,3 +1,12 @@
+export type TimelineComment = {
+  id: string;
+  content: string;
+  author: string;
+  mentionedRole?: "clinician";
+  resolved: boolean;
+  resolvedBy?: string;
+};
+
 export type TimelineItem = {
   id: string;
   date: string;
@@ -10,6 +19,8 @@ export type TimelineItem = {
   review?: "Confirmed" | "Pending review";
   sourceId?: string;
   sourceEvidence?: string;
+  apiId?: string;
+  comments?: TimelineComment[];
 };
 
 export type GlanceItem = {
@@ -123,6 +134,7 @@ export const sarahTimeline: TimelineItem[] = [
   },
   {
     id: "entry-aug-24",
+    apiId: "00000000-0000-0000-0000-00000000000d",
     date: "24 Aug 2026",
     time: "09:00",
     label: "Staff note",
@@ -133,6 +145,15 @@ export const sarahTimeline: TimelineItem[] = [
     tone: "staff",
     sourceEvidence:
       "Chest pressure remains present after the patient AI session. Escalated to the clinician for review before today's consultation.",
+    comments: [
+      {
+        id: "00000000-0000-0000-0000-00000000003c",
+        content: "@clinician Please review the persistent chest pressure before today's consult.",
+        author: "Amanda Wong",
+        mentionedRole: "clinician",
+        resolved: false,
+      },
+    ],
   },
   {
     id: "entry-aug-23",

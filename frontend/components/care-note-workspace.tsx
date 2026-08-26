@@ -62,7 +62,12 @@ export function CareNoteWorkspace() {
             {timeline.map((item) => (
               <li className="grid gap-3 sm:grid-cols-[110px_1fr]" key={item.id}>
                 <div className="pt-2 sm:text-right"><p className="text-sm font-semibold text-[#415a54]">{item.date}</p><p className="mt-1 text-xs text-[#82908c]">{item.time}</p></div>
-                <TimelineCard item={item} />
+                <TimelineCard
+                  canCollaborate={identity.role === "staff" || identity.role === "clinician"}
+                  currentUserId={identity.id}
+                  item={item}
+                  showInternalComments={identity.role !== "patient"}
+                />
               </li>
             ))}
           </ol>

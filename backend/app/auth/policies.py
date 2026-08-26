@@ -70,3 +70,10 @@ def allowed_scribe_interaction(user: User) -> InteractionType | None:
 
 def can_view_unreviewed_context(user: User) -> bool:
     return user.role is not UserRole.PATIENT
+
+
+def can_collaborate_on_entry(user: User, entry: Entry) -> bool:
+    return (
+        user.role in (UserRole.STAFF, UserRole.CLINICIAN)
+        and can_view_entry(user, entry)
+    )

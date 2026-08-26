@@ -1,4 +1,5 @@
 import type { TimelineItem } from "@/lib/demo-data";
+import { CommentThread } from "@/components/comment-thread";
 
 const toneStyles: Record<TimelineItem["tone"], string> = {
   clinician: "border-l-[#176b5b]",
@@ -14,7 +15,17 @@ const badgeStyles: Record<TimelineItem["tone"], string> = {
   "ai-clinician": "bg-[#eaf2f7] text-[#356c8b]",
 };
 
-export function TimelineCard({ item }: { item: TimelineItem }) {
+export function TimelineCard({
+  canCollaborate,
+  currentUserId,
+  item,
+  showInternalComments,
+}: {
+  canCollaborate: boolean;
+  currentUserId: string;
+  item: TimelineItem;
+  showInternalComments: boolean;
+}) {
   return (
     <article
       className={`scroll-mt-24 rounded-2xl border border-l-4 border-[#dce6e2] bg-white p-5 shadow-[0_1px_2px_rgba(23,37,34,0.04)] target:border-[#82ab9f] target:bg-[#fbfefd] target:ring-4 target:ring-[#d7ebe5] ${toneStyles[item.tone]}`}
@@ -48,6 +59,14 @@ export function TimelineCard({ item }: { item: TimelineItem }) {
           </p>
         </div>
       )}
+      {showInternalComments && item.apiId && item.comments ? (
+        <CommentThread
+          canCollaborate={canCollaborate}
+          currentUserId={currentUserId}
+          entryId={item.apiId}
+          initialComments={item.comments}
+        />
+      ) : null}
       <div className="mt-5 flex flex-wrap items-center justify-between gap-3 border-t border-[#edf2f0] pt-4 text-xs text-[#74837f]">
         <span>{item.author}</span>
         {item.sourceId && (
