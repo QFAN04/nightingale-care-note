@@ -174,6 +174,8 @@ function mapTimelineEntry(
   return {
     id: `entry-${entry.id}`,
     apiId: entry.id,
+    entryType: entry.entry_type,
+    currentVersion: entry.current_version,
     date: occurredAt.toLocaleDateString("en-GB", {
       day: "2-digit",
       month: "short",

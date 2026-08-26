@@ -424,6 +424,144 @@ describe("Nightingale application shell", () => {
     ).toBeInTheDocument();
   });
 
+  it("shows entry history, compares versions, and reverts with optimistic concurrency", async () => {
+    const fetchMock = vi.fn(async (url: string, options?: RequestInit) => {
+      if (url.endsWith("/glance")) {
+        return {
+          ok: true,
+          json: async () => ({
+            patient: { id: "patient", external_ref: "PAT-001", display_name: "Sarah Lim" },
+            generated_at: "2026-08-27T09:00:00Z",
+            critical: [], recent_changes: [], open_actions: [], conflicts: [],
+          }),
+        };
+      }
+      if (url.endsWith("/timeline")) {
+        return {
+          ok: true,
+          json: async () => [{
+            id: "00000000-0000-0000-0000-00000000000a",
+            patient_id: "00000000-0000-0000-0000-000000000002",
+            author_id: "00000000-0000-0000-0000-000000000005",
+            author_role: "clinician",
+            entry_type: "clinician_note",
+            content: "Updated clinical context.",
+            occurred_at: "2026-08-27T09:00:00Z",
+            provenance_type: "manual",
+            provenance_id: null,
+            current_version: 2,
+          }],
+        };
+      }
+      if (url.endsWith("/versions")) {
+        return {
+          ok: true,
+          json: async () => [
+            {
+              version_number: 1,
+              content: "Original clinical context.",
+              changed_by: { id: "user", display_name: "Dr Priya Nair" },
+              changed_at: "2026-08-26T08:00:00Z",
+              change_reason: "created",
+              source_version: null,
+              reverted_from_version: null,
+            },
+            {
+              version_number: 2,
+              content: "Updated clinical context.",
+              changed_by: { id: "user", display_name: "Dr Priya Nair" },
+              changed_at: "2026-08-27T09:00:00Z",
+              change_reason: "manual_edit",
+              source_version: 1,
+              reverted_from_version: null,
+            },
+          ],
+        };
+      }
+      if (url.includes("/diff")) {
+        return {
+          ok: true,
+          json: async () => ({
+            from_version: 1,
+            to_version: 2,
+            diff: [
+              { type: "removed", text: "Original" },
+              { type: "added", text: "Updated" },
+              { type: "unchanged", text: "clinical context." },
+            ],
+          }),
+        };
+      }
+      if (url.endsWith("/revert") && options?.method === "POST") {
+        return {
+          ok: true,
+          json: async () => ({ entry_id: "entry", new_version: 3, reverted_from: 1 }),
+        };
+      }
+      throw new Error(`Unexpected request: ${url}`);
+    });
+    vi.stubGlobal("fetch", fetchMock);
+    vi.spyOn(window, "confirm").mockReturnValue(true);
+    render(<Home />);
+
+    const card = (await screen.findByText("Updated clinical context.")).closest("article");
+    expect(card).not.toBeNull();
+    fireEvent.click(within(card!).getByRole("button", { name: "Version history" }));
+    expect(await screen.findByText("Version 1")).toBeInTheDocument();
+    expect(screen.getByText("Version 2")).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "Compare versions" }));
+    expect(await screen.findByText("Updated", { selector: "ins" })).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "Revert to version 1" }));
+
+    await waitFor(() =>
+      expect(fetchMock).toHaveBeenCalledWith(
+        "/api/v1/entries/00000000-0000-0000-0000-00000000000a/revert",
+        expect.objectContaining({
+          method: "POST",
+          body: JSON.stringify({ target_version: 1, expected_version: 2 }),
+        }),
+      ),
+    );
+  });
+
+  it("saves a new revision and reports a stale version without overwriting", async () => {
+    const fetchMock = vi.fn(async (url: string, options?: RequestInit) => {
+      if (url.endsWith("/glance")) {
+        return { ok: true, json: async () => ({ patient: { id: "patient", external_ref: "PAT-001", display_name: "Sarah Lim" }, generated_at: "2026-08-27T09:00:00Z", critical: [], recent_changes: [], open_actions: [], conflicts: [] }) };
+      }
+      if (url.endsWith("/timeline")) {
+        return { ok: true, json: async () => [{ id: "00000000-0000-0000-0000-00000000000a", patient_id: "patient", author_id: "clinician", author_role: "clinician", entry_type: "clinician_note", content: "Current note.", occurred_at: "2026-08-27T09:00:00Z", provenance_type: "manual", provenance_id: null, current_version: 2 }] };
+      }
+      if (url.endsWith("/versions")) {
+        return { ok: true, json: async () => [{ version_number: 2, content: "Current note.", changed_by: { id: "clinician", display_name: "Dr Priya Nair" }, changed_at: "2026-08-27T09:00:00Z", change_reason: "manual_edit", source_version: 1, reverted_from_version: null }] };
+      }
+      if (options?.method === "PATCH") {
+        return { ok: false, status: 409, json: async () => ({ error: "version_conflict", current_version: 3, expected_version: 2 }) };
+      }
+      throw new Error(`Unexpected request: ${url}`);
+    });
+    vi.stubGlobal("fetch", fetchMock);
+    render(<Home />);
+
+    const card = (await screen.findByText("Current note.")).closest("article");
+    fireEvent.click(within(card!).getByRole("button", { name: "Version history" }));
+    fireEvent.change(await screen.findByLabelText("Current note content"), {
+      target: { value: "Updated follow-up plan." },
+    });
+    fireEvent.click(screen.getByRole("button", { name: "Save revision" }));
+
+    expect(await screen.findByRole("alert")).toHaveTextContent(
+      "This note changed after you opened it. The latest version has been reloaded.",
+    );
+    expect(fetchMock).toHaveBeenCalledWith(
+      "/api/v1/entries/00000000-0000-0000-0000-00000000000a",
+      expect.objectContaining({
+        method: "PATCH",
+        body: JSON.stringify({ content: "Updated follow-up plan.", expected_version: 2 }),
+      }),
+    );
+  });
+
   it("adds an @clinician comment to the staff note thread", async () => {
     const fetchMock = vi.fn().mockResolvedValue({
       ok: true,

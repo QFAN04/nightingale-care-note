@@ -138,8 +138,11 @@ export function CareNoteWorkspace() {
                 <div className="pt-2 sm:text-right"><p className="text-sm font-semibold text-[#415a54]">{item.date}</p><p className="mt-1 text-xs text-[#82908c]">{item.time}</p></div>
                 <TimelineCard
                   canCollaborate={identity.role === "staff" || identity.role === "clinician"}
+                  canManageVersion={(identity.role === "staff" && item.entryType === "staff_note") || (identity.role === "clinician" && item.entryType === "clinician_note")}
+                  canViewHistory={identity.role !== "patient"}
                   currentUserId={identity.id}
                   item={item}
+                  onVersionComplete={() => loadRoleData(identity.id, identity.role)}
                   showInternalComments={identity.role !== "patient"}
                 />
               </li>

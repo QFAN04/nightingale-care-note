@@ -20,6 +20,8 @@ export type TimelineItem = {
   sourceId?: string;
   sourceEvidence?: string;
   apiId?: string;
+  entryType?: string;
+  currentVersion?: number;
   comments?: TimelineComment[];
 };
 

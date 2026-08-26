@@ -1,4 +1,5 @@
 import uuid
+from datetime import datetime
 from typing import Literal
 
 from pydantic import BaseModel, Field, field_validator
@@ -47,3 +48,18 @@ class EntryRevertRead(BaseModel):
     entry_id: uuid.UUID
     new_version: int
     reverted_from: int
+
+
+class EntryVersionUserRead(BaseModel):
+    id: uuid.UUID
+    display_name: str
+
+
+class EntryVersionRead(BaseModel):
+    version_number: int
+    content: str
+    changed_by: EntryVersionUserRead
+    changed_at: datetime
+    change_reason: str
+    source_version: int | None
+    reverted_from_version: int | None

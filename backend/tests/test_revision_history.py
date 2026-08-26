@@ -133,3 +133,48 @@ def test_patch_enforces_entry_type_ownership() -> None:
     entry = session.get(Entry, staff_entry_id)
     assert entry is not None and entry.current_version == 1
     close_client(session)
+
+
+def test_versions_lists_complete_snapshots_with_change_metadata() -> None:
+    client, session, story = make_client()
+    entry_id = fixed_uuid(10)
+    updated_content = "Penicillin allergy confirmed. Review again in four weeks."
+    patch_response = client.patch(
+        f"/api/v1/entries/{entry_id}",
+        headers={"X-Demo-User-ID": str(story.clinician_user.id)},
+        json={"content": updated_content, "expected_version": 1},
+    )
+    assert patch_response.status_code == 200
+
+    response = client.get(
+        f"/api/v1/entries/{entry_id}/versions",
+        headers={"X-Demo-User-ID": str(story.staff_user.id)},
+    )
+
+    assert response.status_code == 200
+    versions = response.json()
+    assert [version["version_number"] for version in versions] == [1, 2]
+    assert versions[0]["change_reason"] == "created"
+    assert versions[0]["source_version"] is None
+    assert versions[0]["reverted_from_version"] is None
+    assert versions[1]["content"] == updated_content
+    assert versions[1]["change_reason"] == "manual_edit"
+    assert versions[1]["source_version"] == 1
+    assert versions[1]["changed_by"] == {
+        "id": str(story.clinician_user.id),
+        "display_name": "Dr Priya Nair",
+    }
+    assert versions[1]["changed_at"]
+    close_client(session)
+
+
+def test_patient_cannot_read_internal_entry_versions() -> None:
+    client, session, story = make_client()
+
+    response = client.get(
+        f"/api/v1/entries/{fixed_uuid(10)}/versions",
+        headers={"X-Demo-User-ID": str(story.patient_user.id)},
+    )
+
+    assert response.status_code == 403
+    close_client(session)

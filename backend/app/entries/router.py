@@ -14,11 +14,14 @@ from app.entries.schemas import (
     EntryRevertRequest,
     EntryUpdateRead,
     EntryUpdateRequest,
+    EntryVersionRead,
+    EntryVersionUserRead,
 )
 from app.entries.service import (
     EntryVersionConflictError,
     EntryVersionNotFoundError,
     get_entry_diff,
+    list_entry_versions,
     revert_entry,
     update_entry,
 )
@@ -29,6 +32,35 @@ from app.models.timeline import Entry
 router = APIRouter(prefix="/api/v1/entries", tags=["entries"])
 DatabaseSession = Annotated[Session, Depends(get_db_session)]
 CurrentUser = Annotated[User, Depends(get_current_user)]
+
+
+@router.get("/{entry_id}/versions", response_model=list[EntryVersionRead])
+def get_entry_versions(
+    entry_id: uuid.UUID,
+    session: DatabaseSession,
+    user: CurrentUser,
+) -> list[EntryVersionRead]:
+    entry = _visible_entry(session, user, entry_id)
+    if not can_view_entry(user, entry):
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Role cannot view this entry",
+        )
+    return [
+        EntryVersionRead(
+            version_number=version.version_number,
+            content=version.content,
+            changed_by=EntryVersionUserRead(
+                id=version.changed_by.id,
+                display_name=version.changed_by.display_name,
+            ),
+            changed_at=version.changed_at,
+            change_reason=version.change_reason.value,
+            source_version=version.source_version,
+            reverted_from_version=version.reverted_from_version,
+        )
+        for version in list_entry_versions(session, entry.id)
+    ]
 
 
 @router.patch("/{entry_id}", response_model=EntryUpdateRead)

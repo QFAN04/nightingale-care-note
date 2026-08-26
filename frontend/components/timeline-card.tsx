@@ -1,5 +1,10 @@
+"use client";
+
+import { useState } from "react";
+
 import type { TimelineItem } from "@/lib/demo-data";
 import { CommentThread } from "@/components/comment-thread";
+import { VersionHistoryModal } from "@/components/version-history-modal";
 
 const toneStyles: Record<TimelineItem["tone"], string> = {
   clinician: "border-l-[#176b5b]",
@@ -17,15 +22,22 @@ const badgeStyles: Record<TimelineItem["tone"], string> = {
 
 export function TimelineCard({
   canCollaborate,
+  canManageVersion,
+  canViewHistory,
   currentUserId,
   item,
+  onVersionComplete,
   showInternalComments,
 }: {
   canCollaborate: boolean;
+  canManageVersion: boolean;
+  canViewHistory: boolean;
   currentUserId: string;
   item: TimelineItem;
+  onVersionComplete: () => void | Promise<void>;
   showInternalComments: boolean;
 }) {
+  const [isHistoryOpen, setIsHistoryOpen] = useState(false);
   return (
     <article
       className={`scroll-mt-24 rounded-2xl border border-l-4 border-[#dce6e2] bg-white p-5 shadow-[0_1px_2px_rgba(23,37,34,0.04)] target:border-[#82ab9f] target:bg-[#fbfefd] target:ring-4 target:ring-[#d7ebe5] ${toneStyles[item.tone]}`}
@@ -69,6 +81,8 @@ export function TimelineCard({
       ) : null}
       <div className="mt-5 flex flex-wrap items-center justify-between gap-3 border-t border-[#edf2f0] pt-4 text-xs text-[#74837f]">
         <span>{item.author}</span>
+        <div className="flex items-center gap-3">
+        {canViewHistory && item.apiId && item.currentVersion ? <button className="font-semibold text-[#176b5b] underline decoration-[#a9cfc5] underline-offset-4" onClick={() => setIsHistoryOpen(true)} type="button">Version history</button> : null}
         {item.sourceId && (
           <a
             className="font-semibold text-[#176b5b] underline decoration-[#a9cfc5] underline-offset-4"
@@ -77,7 +91,9 @@ export function TimelineCard({
             View source
           </a>
         )}
+        </div>
       </div>
+      {isHistoryOpen && item.apiId && item.currentVersion ? <VersionHistoryModal canManage={canManageVersion} currentContent={item.content} currentUserId={currentUserId} currentVersion={item.currentVersion} entryId={item.apiId} onClose={() => setIsHistoryOpen(false)} onComplete={onVersionComplete} /> : null}
     </article>
   );
 }

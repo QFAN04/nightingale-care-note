@@ -5,7 +5,7 @@ import re
 from difflib import SequenceMatcher
 
 from sqlalchemy import select, update
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session, joinedload
 
 from app.models.audit import AuditEvent, ChangeReason, EntryVersion
 from app.models.identity import Patient, User, UserRole
@@ -21,6 +21,17 @@ class EntryVersionConflictError(Exception):
 
 class EntryVersionNotFoundError(Exception):
     pass
+
+
+def list_entry_versions(db: Session, entry_id: object) -> list[EntryVersion]:
+    return list(
+        db.scalars(
+            select(EntryVersion)
+            .options(joinedload(EntryVersion.changed_by))
+            .where(EntryVersion.entry_id == entry_id)
+            .order_by(EntryVersion.version_number)
+        )
+    )
 
 
 def create_manual_entry(
