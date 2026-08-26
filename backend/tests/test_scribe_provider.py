@@ -50,7 +50,6 @@ def test_deepseek_provider_sends_json_mode_request() -> None:
     )
     provider = DeepSeekScribeProvider(
         api_key="local-test-key",
-        model="deepseek-v4-pro",
         client=client,
     )
 
@@ -68,7 +67,7 @@ def test_deepseek_provider_sends_json_mode_request() -> None:
     assert captured["authorization"] == "Bearer local-test-key"
     assert captured["path"] == "/chat/completions"
     assert captured["payload"] == {
-        "model": "deepseek-v4-pro",
+        "model": "deepseek-v4-flash",
         "messages": [
             {"role": "system", "content": "Return a JSON object."},
             {"role": "user", "content": "Redacted transcript"},

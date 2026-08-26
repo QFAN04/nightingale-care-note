@@ -14,7 +14,7 @@ class StrictAIModel(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
 
-class ExtractedFact(StrictAIModel):
+class ExtractedClinicalFact(StrictAIModel):
     fact_type: FactType
     entity_name: NonEmptyText
     value_text: NonEmptyText | None = None
@@ -26,7 +26,7 @@ class ExtractedFact(StrictAIModel):
     extraction_confidence: float = Field(ge=0, le=1)
 
     @model_validator(mode="after")
-    def require_extracted_value(self) -> "ExtractedFact":
+    def require_extracted_value(self) -> "ExtractedClinicalFact":
         if self.value_text is None and self.value_number is None:
             raise ValueError("an extracted fact must include a text or numeric value")
         return self
@@ -38,7 +38,7 @@ class SuggestedTask(StrictAIModel):
     source_quote: NonEmptyText
 
 
-class ScribeOutput(StrictAIModel):
+class ScribeResult(StrictAIModel):
     summary: NonEmptyText
-    facts: list[ExtractedFact] = Field(default_factory=list, max_length=50)
+    facts: list[ExtractedClinicalFact] = Field(default_factory=list, max_length=50)
     tasks: list[SuggestedTask] = Field(default_factory=list, max_length=20)

@@ -2,7 +2,7 @@
 
 import json
 
-from app.ai.schemas import ScribeOutput
+from app.ai.schemas import ScribeResult
 from app.models.timeline import InteractionType
 
 
@@ -11,7 +11,7 @@ PROMPT_VERSION = "nightingale-scribe-v1"
 
 def build_scribe_system_prompt(interaction_type: InteractionType) -> str:
     schema = json.dumps(
-        ScribeOutput.model_json_schema(),
+        ScribeResult.model_json_schema(),
         ensure_ascii=False,
         separators=(",", ":"),
     )

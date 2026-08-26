@@ -5,10 +5,10 @@ import uuid
 from pydantic import ValidationError
 from sqlalchemy.orm import Session
 
-from app.ai.prompt import build_scribe_system_prompt
+from app.ai.prompts.scribe import build_scribe_system_prompt
 from app.ai.providers.base import ScribeProvider
 from app.ai.redaction import redact_phi
-from app.ai.schemas import ScribeOutput
+from app.ai.schemas import ScribeResult
 from app.models.clinical import (
     ClinicalFact,
     ReviewStatus,
@@ -46,7 +46,7 @@ async def process_consult_session(
     db: Session,
     consult_session_id: uuid.UUID,
     provider: ScribeProvider,
-) -> ScribeOutput:
+) -> ScribeResult:
     consult = db.get(ConsultSession, consult_session_id)
     if consult is None:
         raise ScribeProcessingError("consult session was not found")
@@ -66,7 +66,7 @@ async def process_consult_session(
     db.commit()
 
     base_prompt = build_scribe_system_prompt(consult.interaction_type)
-    output: ScribeOutput | None = None
+    output: ScribeResult | None = None
     for attempt in range(2):
         prompt = base_prompt
         if attempt == 1:
@@ -86,7 +86,7 @@ async def process_consult_session(
             raise ScribeProcessingError("AI provider request failed") from exc
 
         try:
-            candidate = ScribeOutput.model_validate_json(raw_output)
+            candidate = ScribeResult.model_validate_json(raw_output)
             _validate_source_quotes(candidate, consult.redacted_transcript)
             output = candidate
             break
@@ -153,7 +153,7 @@ async def process_consult_session(
     return output
 
 
-def _validate_source_quotes(output: ScribeOutput, transcript: str) -> None:
+def _validate_source_quotes(output: ScribeResult, transcript: str) -> None:
     quotes = [fact.source_quote for fact in output.facts]
     quotes.extend(task.source_quote for task in output.tasks)
     if any(quote not in transcript for quote in quotes):

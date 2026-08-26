@@ -1,7 +1,7 @@
 import pytest
 from pydantic import ValidationError
 
-from app.ai.schemas import ScribeOutput
+from app.ai.schemas import ScribeResult
 from app.models.clinical import FactType, PersistenceType, RiskLevel, TaskPriority
 
 
@@ -30,7 +30,7 @@ def valid_payload() -> dict[str, object]:
 
 
 def test_scribe_output_parses_strict_supported_structure() -> None:
-    output = ScribeOutput.model_validate(valid_payload())
+    output = ScribeResult.model_validate(valid_payload())
 
     assert output.facts[0].fact_type is FactType.SYMPTOM
     assert output.facts[0].risk_hint is RiskLevel.HIGH
@@ -43,7 +43,7 @@ def test_scribe_output_forbids_uncontracted_fields() -> None:
     payload["diagnosis"] = "unstable angina"
 
     with pytest.raises(ValidationError, match="Extra inputs are not permitted"):
-        ScribeOutput.model_validate(payload)
+        ScribeResult.model_validate(payload)
 
 
 @pytest.mark.parametrize("confidence", [-0.01, 1.01])
@@ -52,7 +52,7 @@ def test_fact_confidence_must_be_between_zero_and_one(confidence: float) -> None
     payload["facts"][0]["extraction_confidence"] = confidence  # type: ignore[index]
 
     with pytest.raises(ValidationError):
-        ScribeOutput.model_validate(payload)
+        ScribeResult.model_validate(payload)
 
 
 def test_fact_requires_a_value_and_nonempty_source_quote() -> None:
@@ -62,4 +62,4 @@ def test_fact_requires_a_value_and_nonempty_source_quote() -> None:
     fact["source_quote"] = "   "
 
     with pytest.raises(ValidationError):
-        ScribeOutput.model_validate(payload)
+        ScribeResult.model_validate(payload)
