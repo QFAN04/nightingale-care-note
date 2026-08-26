@@ -30,42 +30,50 @@ const sectionStyles: Record<GlanceSection["id"], { accent: string; badge: string
 };
 
 export function CareGlance({
+  canReviewHighlights,
   canResolveConflicts,
   currentUserId,
   sections,
 }: {
+  canReviewHighlights: boolean;
   canResolveConflicts: boolean;
   currentUserId: string;
   sections: GlanceSection[];
 }) {
-  const [visibleSections, setVisibleSections] = useState(sections);
+  const [acceptedItems, setAcceptedItems] = useState<Record<string, string>>({});
+  const [hiddenItemIds, setHiddenItemIds] = useState<Set<string>>(() => new Set());
   const [pendingId, setPendingId] = useState<string | null>(null);
   const [resolutionNotes, setResolutionNotes] = useState<Record<string, string>>({});
   const [reviewError, setReviewError] = useState<string | null>(null);
+  const visibleSections = sections.map((section) => ({
+    ...section,
+    items: section.items
+      .filter((item) => !hiddenItemIds.has(item.id))
+      .map((item) =>
+        acceptedItems[item.id]
+          ? {
+              ...item,
+              status: "Accepted",
+              reviewable: false,
+              acceptedBy: acceptedItems[item.id],
+            }
+          : item,
+      ),
+  }));
 
   async function handleReview(highlightId: string, action: HighlightReviewAction) {
     setPendingId(highlightId);
     setReviewError(null);
     try {
       const result = await reviewHighlight(highlightId, action, currentUserId);
-      setVisibleSections((current) =>
-        current.map((section) => ({
-          ...section,
-          items:
-            result.status === "rejected"
-              ? section.items.filter((item) => item.id !== highlightId)
-              : section.items.map((item) =>
-                  item.id === highlightId
-                    ? {
-                        ...item,
-                        status: "Accepted",
-                        reviewable: false,
-                        acceptedBy: result.reviewed_by.display_name,
-                      }
-                    : item,
-                ),
-        })),
-      );
+      if (result.status === "rejected") {
+        setHiddenItemIds((current) => new Set(current).add(highlightId));
+      } else {
+        setAcceptedItems((current) => ({
+          ...current,
+          [highlightId]: result.reviewed_by.display_name,
+        }));
+      }
     } catch (error) {
       setReviewError(error instanceof Error ? error.message : "The review could not be saved.");
     } finally {
@@ -80,15 +88,7 @@ export function CareGlance({
     setReviewError(null);
     try {
       await resolveConflict(conflictId, resolutionNote, currentUserId);
-      setVisibleSections((current) =>
-        current.map((section) => ({
-          ...section,
-          items:
-            section.id === "conflicts"
-              ? section.items.filter((item) => item.id !== conflictId)
-              : section.items,
-        })),
-      );
+      setHiddenItemIds((current) => new Set(current).add(conflictId));
     } catch (error) {
       setReviewError(
         error instanceof Error ? error.message : "The conflict resolution could not be saved.",
@@ -158,7 +158,7 @@ export function CareGlance({
                       {item.riskReason}
                     </p>
 
-                    {item.reviewable ? (
+                    {item.reviewable && canReviewHighlights ? (
                       <div className="mt-3 rounded-lg border border-[#e7dded] bg-[#f8f4fb] p-3">
                         <p className="text-[10px] font-semibold uppercase tracking-[0.1em] text-[#745390]">
                           ◇ AI suggestion

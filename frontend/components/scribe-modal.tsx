@@ -8,7 +8,7 @@ type ScribeModalProps = {
   patientId: string;
   currentUserId: string;
   onClose: () => void;
-  onComplete: (result: ScribeResult) => void;
+  onComplete: (result: ScribeResult) => void | Promise<void>;
 };
 
 export function ScribeModal({ currentUserId, patientId, onClose, onComplete }: ScribeModalProps) {
@@ -29,7 +29,7 @@ export function ScribeModal({ currentUserId, patientId, onClose, onComplete }: S
         currentUserId,
       );
       setResult(nextResult);
-      onComplete(nextResult);
+      await onComplete(nextResult);
     } catch (caught) {
       setError(caught instanceof Error ? caught.message : "AI Scribe failed.");
     } finally {

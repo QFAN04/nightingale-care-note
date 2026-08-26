@@ -106,7 +106,11 @@ describe("Nightingale application shell", () => {
     expect(within(recent).getByText(/AI suggestion/)).toBeInTheDocument();
     fireEvent.click(within(recent).getByRole("button", { name: "Accept" }));
 
-    await waitFor(() => expect(fetchMock).toHaveBeenCalledOnce());
+    await waitFor(() =>
+      expect(
+        fetchMock.mock.calls.filter(([, options]) => options?.method === "POST"),
+      ).toHaveLength(1),
+    );
     expect(fetchMock).toHaveBeenCalledWith(
       "/api/v1/highlights/00000000-0000-0000-0000-000000000029/accept",
       expect.objectContaining({
@@ -125,25 +129,100 @@ describe("Nightingale application shell", () => {
   });
 
   it("runs the frozen AI scribe modal and refreshes the timeline", async () => {
-    const fetchMock = vi.fn().mockResolvedValue({
-      ok: true,
-      json: async () => ({
-        summary: "Patient reports newly worsening chest pressure.",
-        facts: [
-          {
-            fact_type: "symptom",
-            entity_name: "chest pressure",
-            value_text: "worsening",
-            value_number: null,
-            unit: null,
-            risk_hint: "high",
-            persistence_hint: "transient",
-            source_quote: "chest pressure felt stronger",
-            extraction_confidence: 0.96,
-          },
-        ],
-        tasks: [],
-      }),
+    let scribeCompleted = false;
+    const fetchMock = vi.fn(async (url: string, options?: RequestInit) => {
+      if (options?.method === "POST") {
+        scribeCompleted = true;
+        return {
+          ok: true,
+          json: async () => ({
+            summary: "Patient reports newly worsening chest pressure.",
+            facts: [
+              {
+                fact_type: "symptom",
+                entity_name: "chest pressure",
+                value_text: "worsening",
+                value_number: null,
+                unit: null,
+                risk_hint: "high",
+                persistence_hint: "transient",
+                source_quote: "chest pressure felt stronger",
+                extraction_confidence: 0.96,
+              },
+            ],
+            tasks: [],
+          }),
+        };
+      }
+      if (url.endsWith("/glance")) {
+        return {
+          ok: true,
+          json: async () => ({
+            patient: {
+              id: "00000000-0000-0000-0000-000000000002",
+              external_ref: "PAT-001",
+              display_name: "Sarah Lim",
+            },
+            generated_at: "2026-08-26T10:00:00Z",
+            critical: [],
+            recent_changes: scribeCompleted
+              ? [
+                  {
+                    id: "00000000-0000-0000-0000-000000000041",
+                    title: "New worsening chest pressure",
+                    category: "recent_change",
+                    status: "suggested",
+                    risk_level: "high",
+                    risk_reason: "New high-risk symptom requires review",
+                    source: {
+                      entry_id: "00000000-0000-0000-0000-000000000071",
+                      entry_type: "ai_doctor_consult_summary",
+                      occurred_at: "2026-08-26T10:00:00Z",
+                      provenance_type: "llm",
+                      provenance_id: "00000000-0000-0000-0000-000000000081",
+                      source_quote: "chest pressure felt stronger",
+                      source_start: 31,
+                      source_end: 59,
+                    },
+                    details: {
+                      entity_name: "chest pressure",
+                      value_text: "worsening",
+                      value_number: null,
+                      unit: null,
+                      fact_review_status: "suggested",
+                      task_priority: null,
+                      task_status: null,
+                      authoritative_value: null,
+                      conflicting_value: null,
+                    },
+                  },
+                ]
+              : [],
+            open_actions: [],
+            conflicts: [],
+          }),
+        };
+      }
+      return {
+        ok: true,
+        json: async () =>
+          scribeCompleted
+            ? [
+                {
+                  id: "00000000-0000-0000-0000-000000000071",
+                  patient_id: "00000000-0000-0000-0000-000000000002",
+                  author_id: "00000000-0000-0000-0000-000000000005",
+                  author_role: "clinician",
+                  entry_type: "ai_doctor_consult_summary",
+                  content: "Patient reports newly worsening chest pressure.",
+                  occurred_at: "2026-08-26T10:00:00Z",
+                  provenance_type: "llm",
+                  provenance_id: "00000000-0000-0000-0000-000000000081",
+                  current_version: 1,
+                },
+              ]
+            : [],
+      };
     });
     vi.stubGlobal("fetch", fetchMock);
     render(<Home />);
@@ -157,7 +236,11 @@ describe("Nightingale application shell", () => {
     });
     fireEvent.click(screen.getByRole("button", { name: "Generate" }));
 
-    await waitFor(() => expect(fetchMock).toHaveBeenCalledOnce());
+    await waitFor(() =>
+      expect(
+        fetchMock.mock.calls.filter(([, options]) => options?.method === "POST"),
+      ).toHaveLength(1),
+    );
     expect(fetchMock).toHaveBeenCalledWith(
       expect.stringMatching(/\/api\/v1\/patients\/.*\/scribe$/),
       expect.objectContaining({
@@ -174,6 +257,7 @@ describe("Nightingale application shell", () => {
     expect(await screen.findByText("PHI redacted")).toBeInTheDocument();
     expect(screen.getAllByText("Patient reports newly worsening chest pressure.")).toHaveLength(2);
     expect(screen.getByText("chest pressure")).toBeInTheDocument();
+    expect(await screen.findByText("New worsening chest pressure")).toBeInTheDocument();
     expect(screen.getByText("Added to the top of the timeline")).toBeInTheDocument();
   });
 
@@ -206,7 +290,11 @@ describe("Nightingale application shell", () => {
     });
     fireEvent.click(within(staffCard!).getByRole("button", { name: "Add comment" }));
 
-    await waitFor(() => expect(fetchMock).toHaveBeenCalledOnce());
+    await waitFor(() =>
+      expect(
+        fetchMock.mock.calls.filter(([, options]) => options?.method === "POST"),
+      ).toHaveLength(1),
+    );
     expect(fetchMock).toHaveBeenCalledWith(
       "/api/v1/entries/00000000-0000-0000-0000-00000000000d/comments",
       expect.objectContaining({
@@ -252,7 +340,11 @@ describe("Nightingale application shell", () => {
     expect(staffCard).not.toBeNull();
     fireEvent.click(within(staffCard!).getByRole("button", { name: "Resolve comment" }));
 
-    await waitFor(() => expect(fetchMock).toHaveBeenCalledOnce());
+    await waitFor(() =>
+      expect(
+        fetchMock.mock.calls.filter(([, options]) => options?.method === "POST"),
+      ).toHaveLength(1),
+    );
     expect(fetchMock).toHaveBeenCalledWith(
       "/api/v1/comments/00000000-0000-0000-0000-00000000003c/resolve",
       expect.objectContaining({
@@ -292,7 +384,11 @@ describe("Nightingale application shell", () => {
     );
     fireEvent.click(within(conflicts).getByRole("button", { name: "Resolve conflict" }));
 
-    await waitFor(() => expect(fetchMock).toHaveBeenCalledOnce());
+    await waitFor(() =>
+      expect(
+        fetchMock.mock.calls.filter(([, options]) => options?.method === "POST"),
+      ).toHaveLength(1),
+    );
     expect(fetchMock).toHaveBeenCalledWith(
       "/api/v1/conflicts/00000000-0000-0000-0000-000000000033/resolve",
       expect.objectContaining({
@@ -309,6 +405,107 @@ describe("Nightingale application shell", () => {
       expect(
         within(conflicts).queryByText("Atorvastatin dose discrepancy"),
       ).not.toBeInTheDocument(),
+    );
+  });
+
+  it("reloads role-scoped APIs and removes internal context for the patient", async () => {
+    const fetchMock = vi.fn(async (url: string, options?: RequestInit) => {
+      const userId = (options?.headers as Record<string, string> | undefined)?.[
+        "X-Demo-User-ID"
+      ];
+      const isPatient = userId === "00000000-0000-0000-0000-000000000003";
+      if (url.endsWith("/glance")) {
+        return {
+          ok: true,
+          json: async () => ({
+            patient: {
+              id: "00000000-0000-0000-0000-000000000002",
+              external_ref: "PAT-001",
+              display_name: "Sarah Lim",
+            },
+            generated_at: "2026-08-26T10:00:00Z",
+            critical: [],
+            recent_changes: isPatient
+              ? []
+              : [
+                  {
+                    id: "00000000-0000-0000-0000-000000000041",
+                    title: "Internal clinician suggestion",
+                    category: "recent_change",
+                    status: "suggested",
+                    risk_level: "high",
+                    risk_reason: "Internal review required",
+                    source: {
+                      entry_id: "00000000-0000-0000-0000-000000000013",
+                      entry_type: "staff_note",
+                      occurred_at: "2026-08-24T09:00:00Z",
+                      provenance_type: "manual",
+                      provenance_id: null,
+                      source_quote: "Escalated to the clinician for review.",
+                      source_start: null,
+                      source_end: null,
+                    },
+                    details: {
+                      entity_name: "chest pressure",
+                      value_text: "persistent",
+                      value_number: null,
+                      unit: null,
+                      fact_review_status: "suggested",
+                      task_priority: null,
+                      task_status: null,
+                      authoritative_value: null,
+                      conflicting_value: null,
+                    },
+                  },
+                ],
+            open_actions: [],
+            conflicts: [],
+          }),
+        };
+      }
+      return {
+        ok: true,
+        json: async () =>
+          isPatient
+            ? []
+            : [
+                {
+                  id: "00000000-0000-0000-0000-000000000013",
+                  patient_id: "00000000-0000-0000-0000-000000000002",
+                  author_id: "00000000-0000-0000-0000-000000000004",
+                  author_role: "staff",
+                  entry_type: "staff_note",
+                  content: "Internal staff escalation.",
+                  occurred_at: "2026-08-24T09:00:00Z",
+                  provenance_type: "manual",
+                  provenance_id: null,
+                  current_version: 1,
+                },
+              ],
+      };
+    });
+    vi.stubGlobal("fetch", fetchMock);
+    render(<Home />);
+
+    expect(await screen.findByText("Internal clinician suggestion")).toBeInTheDocument();
+    expect(screen.getByText("Internal staff escalation.")).toBeInTheDocument();
+
+    fireEvent.change(screen.getByLabelText("Demo role"), {
+      target: { value: "patient" },
+    });
+
+    await waitFor(() =>
+      expect(screen.queryByText("Internal clinician suggestion")).not.toBeInTheDocument(),
+    );
+    expect(screen.queryByText("Internal staff escalation.")).not.toBeInTheDocument();
+    expect(screen.getByText("No timeline entries visible for this role.")).toBeInTheDocument();
+    expect(fetchMock).toHaveBeenCalledWith(
+      expect.stringMatching(/\/timeline$/),
+      expect.objectContaining({
+        headers: {
+          "X-Demo-User-ID": "00000000-0000-0000-0000-000000000003",
+        },
+      }),
     );
   });
 });

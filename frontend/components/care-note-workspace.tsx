@@ -1,13 +1,19 @@
 "use client";
 
-import { useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 
 import { CareGlance } from "@/components/care-glance";
 import { useDemoIdentity } from "@/components/demo-identity-context";
 import { ScribeModal } from "@/components/scribe-modal";
 import { TimelineCard } from "@/components/timeline-card";
-import { sarahGlance, sarahLim, sarahTimeline, type TimelineItem } from "@/lib/demo-data";
-import type { ScribeResult } from "@/lib/scribe-api";
+import { fetchCareWorkspace } from "@/lib/care-api";
+import {
+  sarahGlance,
+  sarahLim,
+  sarahTimeline,
+  type GlanceSection,
+  type TimelineItem,
+} from "@/lib/demo-data";
 
 const SARAH_PATIENT_ID = "00000000-0000-0000-0000-000000000002";
 
@@ -15,22 +21,64 @@ export function CareNoteWorkspace() {
   const { identity } = useDemoIdentity();
   const [isScribeOpen, setIsScribeOpen] = useState(false);
   const [timeline, setTimeline] = useState<TimelineItem[]>(sarahTimeline);
+  const [glance, setGlance] = useState<GlanceSection[]>(sarahGlance);
+  const [loadedUserId, setLoadedUserId] = useState<string | null>(null);
+  const [loadError, setLoadError] = useState<string | null>(null);
+  const requestSequence = useRef(0);
 
-  function addScribeResult(result: ScribeResult) {
-    const now = new Date();
-    const item: TimelineItem = {
-      id: `scribe-${now.getTime()}`,
-      date: now.toLocaleDateString("en-GB", { day: "2-digit", month: "short", year: "numeric" }),
-      time: now.toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit" }),
-      label: "AI doctor consult summary",
-      title: "New AI scribe summary",
-      content: result.summary,
-      author: "AI scribed from clinician consultation",
-      tone: "ai-clinician",
-      review: "Pending review",
-    };
-    setTimeline((current) => [item, ...current]);
-  }
+  const loadRoleData = useCallback(async (userId: string, role: string) => {
+    const sequence = ++requestSequence.current;
+    try {
+      const data = await fetchCareWorkspace(SARAH_PATIENT_ID, userId);
+      if (sequence !== requestSequence.current) return;
+      setTimeline(data.timeline);
+      setGlance(data.sections);
+      setLoadError(null);
+    } catch (error) {
+      if (sequence !== requestSequence.current) return;
+      const fallback = fallbackForRole(role);
+      setTimeline(fallback.timeline);
+      setGlance(fallback.sections);
+      setLoadError(
+        error instanceof Error
+          ? `${error.message} Showing the role-filtered synthetic preview.`
+          : "Live care data is unavailable. Showing the role-filtered synthetic preview.",
+      );
+    } finally {
+      if (sequence === requestSequence.current) {
+        setLoadedUserId(userId);
+      }
+    }
+  }, []);
+
+  useEffect(() => {
+    const sequence = ++requestSequence.current;
+    void fetchCareWorkspace(SARAH_PATIENT_ID, identity.id)
+      .then((data) => {
+        if (sequence !== requestSequence.current) return;
+        setTimeline(data.timeline);
+        setGlance(data.sections);
+        setLoadError(null);
+      })
+      .catch((error: unknown) => {
+        if (sequence !== requestSequence.current) return;
+        const fallback = fallbackForRole(identity.role);
+        setTimeline(fallback.timeline);
+        setGlance(fallback.sections);
+        setLoadError(
+          error instanceof Error
+            ? `${error.message} Showing the role-filtered synthetic preview.`
+            : "Live care data is unavailable. Showing the role-filtered synthetic preview.",
+        );
+      })
+      .finally(() => {
+        if (sequence === requestSequence.current) setLoadedUserId(identity.id);
+      });
+  }, [identity.id, identity.role]);
+
+  const isSwitchingRole = loadedUserId !== null && loadedUserId !== identity.id;
+  const visibleTimeline = isSwitchingRole ? [] : timeline;
+  const visibleGlance = isSwitchingRole ? emptyGlance() : glance;
 
   return (
     <main id="workspace" className="px-5 py-7 sm:px-8 lg:px-10 lg:py-9">
@@ -49,10 +97,18 @@ export function CareNoteWorkspace() {
         </div>
 
         <CareGlance
+          canReviewHighlights={identity.role === "clinician"}
           canResolveConflicts={identity.role === "clinician"}
           currentUserId={identity.id}
-          sections={sarahGlance}
+          key={identity.id}
+          sections={visibleGlance}
         />
+
+        {loadError ? (
+          <p className="mt-4 rounded-xl border border-[#ead8bd] bg-[#fff9ef] px-4 py-3 text-xs text-[#805d2e]" role="status">
+            {loadError}
+          </p>
+        ) : null}
 
         <section aria-labelledby="timeline-heading" className="mt-8">
           <div className="flex items-end justify-between gap-4">
@@ -62,8 +118,13 @@ export function CareNoteWorkspace() {
             </div>
             <span className="text-xs text-[#778782]">Newest first</span>
           </div>
+          {visibleTimeline.length === 0 ? (
+            <p className="mt-5 rounded-2xl border border-[#dce6e2] bg-white px-5 py-6 text-sm text-[#667773]">
+              No timeline entries visible for this role.
+            </p>
+          ) : (
           <ol className="mt-5 space-y-4">
-            {timeline.map((item) => (
+            {visibleTimeline.map((item) => (
               <li className="grid gap-3 sm:grid-cols-[110px_1fr]" key={item.id}>
                 <div className="pt-2 sm:text-right"><p className="text-sm font-semibold text-[#415a54]">{item.date}</p><p className="mt-1 text-xs text-[#82908c]">{item.time}</p></div>
                 <TimelineCard
@@ -75,9 +136,33 @@ export function CareNoteWorkspace() {
               </li>
             ))}
           </ol>
+          )}
         </section>
       </div>
-      {isScribeOpen ? <ScribeModal currentUserId={identity.id} onClose={() => setIsScribeOpen(false)} onComplete={addScribeResult} patientId={SARAH_PATIENT_ID} /> : null}
+      {isScribeOpen ? <ScribeModal currentUserId={identity.id} onClose={() => setIsScribeOpen(false)} onComplete={() => loadRoleData(identity.id, identity.role)} patientId={SARAH_PATIENT_ID} /> : null}
     </main>
   );
+}
+
+
+function emptyGlance(): GlanceSection[] {
+  return sarahGlance.map((section) => ({ ...section, items: [] }));
+}
+
+
+function fallbackForRole(role: string): {
+  sections: GlanceSection[];
+  timeline: TimelineItem[];
+} {
+  if (role !== "patient") return { sections: sarahGlance, timeline: sarahTimeline };
+  return {
+    sections: sarahGlance.map((section) => ({
+      ...section,
+      items:
+        section.id === "critical"
+          ? section.items.filter((item) => item.status === "Accepted")
+          : [],
+    })),
+    timeline: [],
+  };
 }
