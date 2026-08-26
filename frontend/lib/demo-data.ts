@@ -9,6 +9,7 @@ export type TimelineItem = {
   tone: "clinician" | "staff" | "ai-patient" | "ai-clinician";
   review?: "Confirmed" | "Pending review";
   sourceId?: string;
+  sourceEvidence?: string;
 };
 
 export type GlanceItem = {
@@ -115,6 +116,7 @@ export const sarahTimeline: TimelineItem[] = [
     tone: "ai-clinician",
     review: "Pending review",
     sourceId: "consult-aug-25",
+    sourceEvidence: "I thought I was taking Atorvastatin 10 mg.",
   },
   {
     id: "entry-aug-24",
@@ -126,6 +128,8 @@ export const sarahTimeline: TimelineItem[] = [
       "Chest pressure remains present after the patient AI session. Escalated to the clinician for review before today's consultation.",
     author: "Amanda Wong · Staff",
     tone: "staff",
+    sourceEvidence:
+      "Chest pressure remains present after the patient AI session. Escalated to the clinician for review before today's consultation.",
   },
   {
     id: "entry-aug-23",
@@ -139,6 +143,7 @@ export const sarahTimeline: TimelineItem[] = [
     tone: "ai-patient",
     review: "Pending review",
     sourceId: "session-aug-23",
+    sourceEvidence: "Last night the chest pressure felt stronger than before.",
   },
   {
     id: "entry-jul-12",
@@ -162,5 +167,6 @@ export const sarahTimeline: TimelineItem[] = [
     author: "Dr Priya Nair · Clinician",
     tone: "clinician",
     review: "Confirmed",
+    sourceEvidence: "Penicillin allergy confirmed; previous reaction was urticaria.",
   },
 ];

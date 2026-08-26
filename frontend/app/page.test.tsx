@@ -60,6 +60,21 @@ describe("Nightingale application shell", () => {
     expect(document.body.textContent).not.toMatch(/base_score|learned_score|final_score/i);
   });
 
+  it("lands on the timeline entry that marks the exact source quote", () => {
+    render(<Home />);
+
+    const recent = screen.getByRole("region", { name: "Recent changes" });
+    const sourceLink = within(recent).getByRole("link", { name: "Jump to source" });
+    expect(sourceLink).toHaveAttribute("href", "#entry-aug-23");
+
+    const target = document.querySelector<HTMLElement>("#entry-aug-23");
+    expect(target).not.toBeNull();
+    expect(within(target!).getByText("Source evidence")).toBeInTheDocument();
+    expect(target!.querySelector("mark")).toHaveTextContent(
+      "Last night the chest pressure felt stronger than before.",
+    );
+  });
+
   it("runs the frozen AI scribe modal and refreshes the timeline", async () => {
     const fetchMock = vi.fn().mockResolvedValue({
       ok: true,

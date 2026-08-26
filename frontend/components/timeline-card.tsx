@@ -17,7 +17,7 @@ const badgeStyles: Record<TimelineItem["tone"], string> = {
 export function TimelineCard({ item }: { item: TimelineItem }) {
   return (
     <article
-      className={`rounded-2xl border border-l-4 border-[#dce6e2] bg-white p-5 shadow-[0_1px_2px_rgba(23,37,34,0.04)] ${toneStyles[item.tone]}`}
+      className={`scroll-mt-24 rounded-2xl border border-l-4 border-[#dce6e2] bg-white p-5 shadow-[0_1px_2px_rgba(23,37,34,0.04)] target:border-[#82ab9f] target:bg-[#fbfefd] target:ring-4 target:ring-[#d7ebe5] ${toneStyles[item.tone]}`}
       id={item.id}
     >
       <div className="flex flex-wrap items-start justify-between gap-3">
@@ -38,6 +38,16 @@ export function TimelineCard({ item }: { item: TimelineItem }) {
         )}
       </div>
       <p className="mt-3 text-sm leading-6 text-[#536560]">{item.content}</p>
+      {item.sourceEvidence && (
+        <div className="mt-4 rounded-xl border border-[#e0e9e6] bg-[#f7faf9] px-3.5 py-3">
+          <p className="text-[10px] font-semibold uppercase tracking-[0.12em] text-[#687a75]">
+            Source evidence
+          </p>
+          <p className="mt-1.5 text-xs leading-5 text-[#4f625d]">
+            “<mark className="rounded-sm bg-[#fff0a8] px-0.5 text-inherit">{item.sourceEvidence}</mark>”
+          </p>
+        </div>
+      )}
       <div className="mt-5 flex flex-wrap items-center justify-between gap-3 border-t border-[#edf2f0] pt-4 text-xs text-[#74837f]">
         <span>{item.author}</span>
         {item.sourceId && (
