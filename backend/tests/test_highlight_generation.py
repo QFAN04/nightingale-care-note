@@ -13,6 +13,7 @@ from app.models.clinical import (
     ConflictType,
     FactType,
     HighlightCategory,
+    HighlightStatus,
     PersistenceType,
     RiskLevel,
     Task,
@@ -204,4 +205,39 @@ def test_generation_is_idempotent_for_existing_fact_category() -> None:
 
     assert len(first) == 1
     assert second == []
+    db.close()
+
+
+def test_generation_does_not_duplicate_active_persistent_critical_entity() -> None:
+    db, patient, entry, _clinician = make_context()
+    first_fact = make_fact(
+        patient,
+        entry,
+        entity="latex",
+        fact_type=FactType.ALLERGY,
+        risk=RiskLevel.CRITICAL,
+        created_at=NOW - timedelta(minutes=10),
+        persistence=PersistenceType.PERSISTENT,
+    )
+    db.add(first_fact)
+    db.commit()
+    first = generate_highlight_suggestions(db, patient.id, now=NOW)
+    first[0].status = HighlightStatus.ACCEPTED
+    db.commit()
+
+    repeated_fact = make_fact(
+        patient,
+        entry,
+        entity="  LATEX  ",
+        fact_type=FactType.ALLERGY,
+        risk=RiskLevel.CRITICAL,
+        created_at=NOW,
+        persistence=PersistenceType.PERSISTENT,
+    )
+    db.add(repeated_fact)
+    db.commit()
+
+    repeated = generate_highlight_suggestions(db, patient.id, now=NOW)
+
+    assert repeated == []
     db.close()

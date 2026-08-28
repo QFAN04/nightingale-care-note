@@ -176,6 +176,15 @@ cd D:\nightingale-care-note\backend
 
 命令只写入固定 Sarah Lim 合成故事，并且幂等：重复运行不会重复插入。输出只报告 created / already present，不打印 transcript。
 
+在正式录屏前，如果 Accept / Reject、Conflict resolution、Scribe 或 Revision 操作已经改变了演示状态，可以显式恢复 canonical synthetic story：
+
+```powershell
+cd D:\nightingale-care-note\backend
+.\.venv\Scripts\python.exe -m app.seed.command --reset-demo
+```
+
+该命令会清除 Nightingale 应用表中的现有合成演示操作并重新写入 Sarah fixture。为防止误删，它在发现固定 Sarah story 之外的 patient、clinic 或 user 时会拒绝执行。不要对包含其他数据的数据库使用该参数。
+
 ## Tests
 
 后端：

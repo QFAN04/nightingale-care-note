@@ -75,6 +75,22 @@ def generate_highlight_suggestions(
             )
         ).all()
     )
+    active_persistent_critical_entities = {
+        _entity_key(entity_name)
+        for entity_name in db.scalars(
+            select(ClinicalFact.entity_name)
+            .join(Highlight, Highlight.clinical_fact_id == ClinicalFact.id)
+            .where(
+                Highlight.patient_id == patient_id,
+                Highlight.category == HighlightCategory.CRITICAL,
+                Highlight.status.in_(
+                    (HighlightStatus.SUGGESTED, HighlightStatus.ACCEPTED)
+                ),
+                ClinicalFact.risk_level == RiskLevel.CRITICAL,
+                ClinicalFact.persistence_type == PersistenceType.PERSISTENT,
+            )
+        )
+    }
 
     tasks_by_fact: dict[uuid.UUID, list[Task]] = defaultdict(list)
     for task in tasks:
@@ -114,6 +130,12 @@ def generate_highlight_suggestions(
         score = score_importance(item, now=now)
         conflict = conflicts_by_fact.get(fact.id)
         category = _fact_category(fact, conflict)
+        persistent_critical_key = _persistent_critical_key(fact, category)
+        if (
+            persistent_critical_key is not None
+            and persistent_critical_key in active_persistent_critical_entities
+        ):
+            continue
         if is_highlight_candidate(item, score) and (fact.id, category) not in existing:
             highlight = Highlight(
                 patient_id=patient_id,
@@ -130,6 +152,8 @@ def generate_highlight_suggestions(
             db.add(highlight)
             generated.append(highlight)
             existing.add((fact.id, category))
+            if persistent_critical_key is not None:
+                active_persistent_critical_entities.add(persistent_critical_key)
 
     for task in tasks:
         if task.source_fact is None:
@@ -227,6 +251,23 @@ def _fact_title(fact: ClinicalFact) -> str:
     if fact.fact_type is FactType.SYMPTOM and fact.value_text:
         return f"{fact.value_text.title()} {fact.entity_name}"
     return fact.entity_name.title()
+
+
+def _persistent_critical_key(
+    fact: ClinicalFact,
+    category: HighlightCategory,
+) -> str | None:
+    if (
+        category is HighlightCategory.CRITICAL
+        and fact.risk_level is RiskLevel.CRITICAL
+        and fact.persistence_type is PersistenceType.PERSISTENT
+    ):
+        return _entity_key(fact.entity_name)
+    return None
+
+
+def _entity_key(value: str) -> str:
+    return " ".join(value.split()).casefold()
 
 
 def _risk_reason(explanations: tuple[str, ...], conflict: bool = False) -> str:

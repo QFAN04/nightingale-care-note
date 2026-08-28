@@ -1,129 +1,243 @@
-# Nightingale 72HR Build 演示脚本
+# Nightingale 72HR Build - Demo Script
 
-本脚本严格使用 Sarah Lim 合成故事，目标时长约 6–8 分钟。禁止替换为真实患者资料。主演示全部通过 Nightingale UI 完成。
+This script uses only the synthetic Sarah Lim story. The target recording length is 6-8 minutes. The main demonstration is completed entirely through the Nightingale UI.
 
-## 演示前准备
+## Pre-demo reset and safety check
 
-1. 使用一份全新、已完成 Alembic migration 的演示数据库运行 seed，确保 clinician note `00000000-0000-0000-0000-00000000000a` 的 `current_version` 为 `1`。
-2. 启动 FastAPI（`http://127.0.0.1:8000`）和 Next.js（`http://localhost:3000`）。
-3. 确认本地 `backend/.env` 已配置真实 `DEEPSEEK_API_KEY` 与 `DEEPSEEK_MODEL=deepseek-v4-flash`；不要在屏幕、终端或录屏中展示 Key。
-4. 浏览器打开 Nightingale 首页；不要在录屏中打开 `.env`、终端环境变量或 Supabase 凭据页面。
-5. 首页身份选择为 **Clinician view / Dr Priya Nair**。
+Use the dedicated Nightingale database only. The reset command refuses to run if it finds a patient, clinic, or user outside the fixed synthetic Sarah story.
 
-## 16 步主演示
+```powershell
+cd D:\nightingale-care-note\backend
+.\.venv\Scripts\python.exe -m alembic upgrade head
+.\.venv\Scripts\python.exe -m app.seed.command --reset-demo
+.\.venv\Scripts\python.exe -m uvicorn app.main:app --reload --port 8000
+```
 
-### 1. 打开 Sarah
+In a second PowerShell window:
 
-在患者列表打开 **Sarah Lim**。指出页面只使用合成患者 `PAT-001`，主区域是单一纵向 care note，而不是彼此割裂的就诊记录。
+```powershell
+cd D:\nightingale-care-note\frontend
+npm run dev
+```
 
-### 2. 阅读 Care Glance
+Before recording:
 
-依次指向四块：
+1. Confirm the reset reports `Synthetic Sarah Lim demo data: reset to canonical state.`
+2. Open `http://localhost:3000` and select **Clinician view / Dr Priya Nair**.
+3. Confirm Care Glance initially contains **Penicillin allergy**, **Worsening chest pressure**, one open clinician-review task, and the **Atorvastatin discrepancy**.
+4. Confirm the local backend environment contains a working DeepSeek key without displaying the file or secret on screen.
+5. Never show `.env`, API keys, database credentials, Supabase connection strings, or real patient information in the recording.
 
-- **Critical**：Penicillin allergy。
-- **Recent changes**：Worsening chest pressure。
-- **Open actions**：Clinician review。
-- **Conflicts**：Atorvastatin dose discrepancy。
+## 6-8 minute English presentation
 
-说明 Glance 是可解释的优先视图，不是 AI 自动诊断。
+### 1. Introduction and patient context
 
-### 3. 从 Glance 回到 Timeline 来源
+**Computer action:** Open Nightingale, keep **Clinician view / Dr Priya Nair**, and select **Sarah Lim**.
 
-展开 **Worsening chest pressure → Evidence & details**，展示精确 source quote，再点击 **Jump to source**。页面应跳到 2026-08-23 的 AI patient session，原文证据应被高亮。
+**Say:**
 
-讲解句：每个重点都可沿 `Highlight → ClinicalFact → Entry → ConsultSession` 回到来源；人工记录则回到对应 Entry。
+> Hello, this is Nightingale Care Note, a local-first longitudinal care-record prototype built for the Nightingale 72HR Build. This demonstration uses only the fixed synthetic patient Sarah Lim. The product is organised around three questions: what matters now, where the information came from, and who reviewed or changed it.
 
-### 4. 运行 New AI Scribe
+### 2. Explain Care Glance
 
-点击 **New AI Scribe**，保留 **Doctor–patient consultation**，粘贴以下合成 transcript：
+**Computer action:** Point to **Critical**, **Recent changes**, **Open actions**, and **Conflicts**.
+
+**Say:**
+
+> At the top is Care Glance. It is not a free-form AI summary. It is a deterministic read model built from structured clinical state. It currently shows a persistent penicillin allergy, worsening chest pressure, an open clinician-review action, and an Atorvastatin discrepancy. The language model never decides the final clinical priority by itself.
+
+### 3. Trace a Glance item to exact evidence
+
+**Computer action:** Expand **Worsening chest pressure**, point to the source quote, and select **Jump to source**.
+
+**Say:**
+
+> Every Glance item remains traceable. This exact quote came from the August 23 AI-patient session. The provenance chain is Highlight to ClinicalFact to Entry to ConsultSession. Human-authored notes resolve directly to their Entry. This means a concise view never removes the underlying evidence.
+
+### 4. Run a real AI Scribe consultation
+
+**Computer action:** Select **New AI Scribe**. Confirm that the interaction type is read-only and displays **Doctor-patient consultation**. Copy and paste this exact synthetic transcript:
 
 ```text
 Doctor: Please confirm your details.
 Patient: I am Sarah Lim, phone 91234567, ID S1234567A.
 Doctor: Have you noticed any new allergies?
 Patient: I have a severe latex allergy and previously had anaphylaxis.
+Doctor: When was the most recent reaction?
+Patient: About two years ago after a medical procedure.
 ```
 
-点击 **Generate**。等待真实 DeepSeek 返回；不要刷新页面或重复点击。
+**Computer action:** Select **Generate** once and wait for the real DeepSeek response.
 
-### 5. 展示 PHI redaction 边界
+**Say while waiting:**
 
-对照输入中的合成姓名、电话和 ID，指向结果区的 **PHI redacted**。说明已知姓名、Singapore phone 与 ID 在调用 DeepSeek 前分别替换为 `[PATIENT_NAME]`、`[PHONE]`、`[ID]`。
+> The current identity determines the interaction type, so the client cannot claim a different clinical role. Before the provider is called, deterministic redaction replaces the known patient name, Singapore phone number, and ID-like value. The real API key remains only in the local backend environment.
 
-当前 UI 有意不把 redacted transcript 回传到浏览器，避免形成第二份敏感文本副本；屏幕上展示的是处理成功标记、摘要、结构化事实和精确 source quote。
+### 5. Explain validation and the trust boundary
 
-### 6. 新建议即时出现
+**Computer action:** Point to **PHI redacted**, the summary, extracted facts, and exact source quote.
 
-确认结果区出现 AI summary 与 latex allergy extracted fact，然后关闭弹窗。页面会重新读取 Timeline 与 Care Glance；最新 AI consult summary 应位于 Timeline 顶部，并出现一条新的、仍为 **Suggested** 的 latex allergy Highlight。
+**Say:**
 
-如果真实模型未把该事实输出为 `critical + persistent`，不要现场修改数据库或假装成功：保留返回结果并记录为最终 DeepSeek 验证问题。
+> DeepSeek output is treated as untrusted structured input. It must pass the Pydantic schema, and every source quote must exist in the redacted transcript. Only a fully validated response is committed. The UI intentionally shows the redaction status rather than creating another browser copy of the complete redacted transcript.
 
-### 7. Clinician 接受建议
+### 6. Review the new Critical suggestion
 
-在新 latex allergy 建议上点击 **Accept**。确认按钮消失，并显示 **Accepted by Dr Priya Nair**。
+**Computer action:** Close the dialog, wait for Timeline and Care Glance to reload, and locate **Latex allergy**. Select **Accept**.
 
-说明 Accept 是人类审核动作：AI 输出默认只能是 suggested，不能自行变成 clinician-confirmed clinical truth。
+**Say:**
 
-### 8. 展示 medication conflict
+> The extracted allergy appears as Suggested first. AI output cannot promote itself to clinician-confirmed truth. Accept means that I confirm this information should be prioritised in Care Glance; it does not mean the system independently made a diagnosis. Repeating the same persistent critical entity will not create another active Latex allergy card, although the source consultation remains preserved in the Timeline.
 
-打开 **Atorvastatin dose discrepancy** 的证据：患者报告 10 mg，4 月 clinician-authoritative record 是 20 mg。强调系统同时保留两方来源，不静默覆盖，也不让 LLM 生成新处方。
+### 7. Explain the medication conflict
 
-如需演示解决动作，在 resolution note 输入 `Medication dose verified as 20 mg.`，再点击 **Resolve conflict**；否则保留冲突供讲解即可。
+**Computer action:** Expand **Atorvastatin discrepancy**. Do not resolve it during the main recording.
 
-### 9. Staff 创建人工记录
+**Say:**
 
-将身份切换为 **Staff view / Amanda Wong**，点击 **Add note**，输入：
+> Sarah reported taking 10 milligrams, while the clinician-authoritative April record states 20 milligrams once daily. Nightingale preserves both sources and raises a conflict. It does not silently overwrite either statement, and the language model cannot issue a new medication instruction. I am leaving the conflict open so its unresolved state remains visible throughout the demonstration.
+
+### 8. Create a manual Staff note
+
+**Computer action:** Switch to **Staff view / Amanda Wong**, select **Add note**, and paste:
 
 ```text
 Patient confirmed that chest pressure is improving today. Clinician review remains requested before closing follow-up.
 ```
 
-点击 **Save note**。确认新记录出现在 Timeline 顶部，并标记为 Staff note。说明客户端只发送正文，后端根据当前身份派生 author、entry type、clinic scope 与 manual provenance，同时写入 version 1 快照和 metadata-only audit event。
+**Computer action:** Select **Save note**.
 
-### 10. 展示 staff comment
+**Say:**
 
-滚动到 2026-08-24 的 **Follow-up escalated** staff note。展示 Amanda Wong 的 `@clinician` 评论与内部协作线程；可回复 `@clinician Reviewed during today's consultation.`。
+> For a manual note, the client sends only non-empty content. The server derives the author, role, entry type, clinic scope, and manual provenance from the authenticated demo identity. The write also creates a complete Version 1 snapshot and a metadata-only audit event. Refreshing the Timeline does not remove the new note.
 
-### 11. 在 UI 创建 revision
+### 9. Show internal collaboration
 
-切回 **Clinician view / Dr Priya Nair**。在 2026-04-15 的 **Medication and allergy context** 卡片点击 **Version history**。
+**Computer action:** Open the August 24 **Follow-up escalated** Staff note and show Amanda Wong's `@clinician` comment. Optionally reply with:
 
-在 **Current note content** 中保留原文并追加：
+```text
+@clinician Reviewed during today's consultation.
+```
+
+**Say:**
+
+> Staff and clinicians can collaborate around a timeline entry. These internal comments are role-scoped and are not returned to the Patient view.
+
+### 10. Create a revision
+
+**Computer action:** Switch back to **Clinician view / Dr Priya Nair**. Open **Version history** on the April 15 **Medication and allergy context** note. Append this sentence to the current content:
 
 ```text
 Review again in four weeks.
 ```
 
-点击 **Save revision**。重新打开 Version history，确认出现 Version 2。解释客户端发送 `expected_version=1`，防止并发静默覆盖；若服务器已有更新，UI 会提示已重新加载最新版而不会覆盖。
+**Computer action:** Select **Save revision**, then reopen Version history.
 
-### 12. 查看 explainable diff
+**Say:**
 
-在 Version history 中选择 **From v1**、**To v2**，点击 **Compare versions**。确认原内容保持 unchanged，新增的 `Review again in four weeks.` 被显示为 added。
+> A revision sends the expected version that the user started editing. If another update has already occurred, the server returns a 409 conflict and the UI reloads the latest version instead of silently overwriting it.
 
-### 13. Revert 但不删除历史
+### 11. Compare and revert without deleting history
 
-点击 **Revert to version 1** 并确认。重新打开 Version history，确认出现 Version 3，正文恢复到 Version 1，而 Version 2 仍保留。说明 revert 是追加完整快照，不执行破坏性删除。
+**Computer action:** Select **From v1**, **To v2**, and **Compare versions**. Then select **Revert to version 1** and confirm. Reopen Version history and show Version 3.
 
-### 14. 切换 Patient role
+**Say:**
 
-回到 Nightingale 首页，将右上角身份切换为 **Patient view / Sarah Lim**。
+> Storage uses immutable full snapshots, while the comparison is calculated on demand. The added sentence is visible in the Diff. Revert does not delete Version 2; it appends Version 3 with the earlier content. The complete audit trail remains intact.
 
-### 15. 内部信息消失
+### 12. Demonstrate backend-enforced RBAC
 
-等待角色范围 API 重新加载。确认 staff note、内部评论、AI suggested Highlight、open action 与未解决 conflict 不再可见；患者只能看到自己的允许范围与已接受内容。强调这是后端 RBAC 过滤，不只是前端隐藏。
+**Computer action:** Return to the home view and switch to **Patient view / Sarah Lim**.
 
-### 16. 解释 bounded self-learning
+**Say:**
 
-切回 Clinician view，以刚才的 Accept 收尾：
+> The Patient role receives only its permitted patient scope and accepted content. Internal Staff notes, comments, suggested Highlights, open internal actions, and unresolved conflicts are filtered by the backend. This is not merely visual hiding. Cross-clinic access returns 404, and deny-by-default Supabase RLS provides a second protection layer behind the FastAPI policy.
 
-- 同 clinic 对相似实体的每次 accept 提供 `+0.25`，reject 抵消 `0.20`。
-- learning bonus 被限制在 `0..3`，只影响后续相似内容的排序。
-- 它不改变事实的 `risk_level`，不跨 clinic 学习，也不能绕过 suggested → clinician review。
-- 页面只展示可读的 risk reason 与来源，不向临床用户暴露内部原始分数。
+### 13. Close with bounded self-learning
 
-## 失败时的诚实处理
+**Computer action:** Switch back to **Clinician view** and stop on Care Glance.
 
-- DeepSeek 超时、502 或结构验证失败：保留错误画面，说明系统在一次修复重试后 fail closed；不要改用假响应冒充真实调用。
-- Revision 显示 stale-version 提示：说明数据库不是全新演示状态；让 UI 重新加载最新版，不要盲目重复 Save/Revert。
-- Patient 切换后仍出现内部信息：立即停止录制，按 RBAC 缺陷处理，不把前端视觉隐藏当作通过。
-- 任何真实 Key、数据库密码或未脱敏患者资料出现在屏幕上：停止并重录。
+**Say:**
+
+> Clinician Accept and Reject feedback can slightly adjust the future ranking of similar entities inside the same clinic. The learning bonus is clamped between zero and three. It cannot change a clinical risk label, transfer across clinics, or bypass clinician review. Nightingale uses AI to make longitudinal information easier to navigate without allowing AI to erase source, authority, or accountability. Thank you.
+
+## Additional copy-ready rehearsal cases
+
+Use these only for testing or a separate rehearsal. Run `--reset-demo` before the final recording so these trials do not pollute Care Glance.
+
+### Recent change case - Nurse-patient Scribe
+
+Switch to **Staff view / Amanda Wong**, open **New AI Scribe**, and paste:
+
+```text
+Nurse: How is the chest pressure compared with yesterday?
+Patient: It has improved from seven out of ten to three out of ten.
+Nurse: Do you still feel it while resting?
+Patient: No, but it returns when I walk quickly.
+Nurse: I will keep the clinician review request open for today.
+Patient: Yes, please ask the doctor to review it.
+```
+
+Expected checks:
+
+- The interaction type is locked to **Nurse-patient consultation**.
+- The output preserves the improvement and exertional recurrence without inventing a diagnosis.
+- A qualifying transient symptom is placed under **Recent changes**, not **Critical**.
+- The clinician-review action remains open.
+
+### Medication conflict case - AI-patient Scribe
+
+Switch to **Patient view / Sarah Lim**, open **New AI Scribe**, and paste:
+
+```text
+AI Assistant: What dose of Atorvastatin are you currently taking?
+Patient: I am taking 10 milligrams every night.
+AI Assistant: Do you have a previous instruction showing another dose?
+Patient: My clinic note may have said 20 milligrams, so I would like the clinic to verify it.
+AI Assistant: Have you changed the dose on your own?
+Patient: No. I am waiting for the clinic to confirm the correct dose.
+```
+
+Expected checks:
+
+- The interaction type is locked to **AI-patient conversation**.
+- The output records the patient-reported 10 mg dose without treating it as authoritative.
+- The system preserves or detects the discrepancy against the clinician record.
+- No new prescription or treatment instruction is generated.
+
+### Duplicate Critical regression case
+
+Run the Latex transcript from Step 4 twice in a rehearsal database.
+
+Expected checks:
+
+- Both consultation entries remain in the Timeline for provenance.
+- Only one active **Latex allergy** card appears in Care Glance.
+- The repeated fact does not crowd the existing **Penicillin allergy** out of the two-card Critical section.
+
+### Additional Staff note cases
+
+**Unsuccessful follow-up:**
+
+```text
+Attempted telephone follow-up at 14:30. Patient was not reached. A second contact attempt is planned for tomorrow morning.
+```
+
+**Medication information awaiting verification:**
+
+```text
+Patient reported taking Atorvastatin 10 mg nightly. Existing clinician documentation should be reviewed before any medication instruction is changed.
+```
+
+Expected checks:
+
+- Each entry is labelled as a Staff note and persists after refresh.
+- Staff cannot create or edit a Clinician note.
+- Patient and Admin roles cannot use Add note.
+
+## Honest failure handling
+
+- If DeepSeek times out, returns 502, or fails schema/source validation, retain the failure state and explain that the service retries once and then fails closed. Never substitute a fake response in a claimed real-provider demonstration.
+- If a stale-version warning appears, reload the latest version. Do not repeatedly overwrite it.
+- If Patient view receives internal information, stop the recording and treat it as an RBAC defect.
+- If a real secret or non-synthetic patient detail appears on screen, stop and re-record.
