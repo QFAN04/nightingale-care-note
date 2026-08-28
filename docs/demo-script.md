@@ -7,7 +7,7 @@ This script uses only the synthetic Sarah Lim story. The target recording length
 Use the dedicated Nightingale database only. The reset command refuses to run if it finds a patient, clinic, or user outside the fixed synthetic Sarah story.
 
 ```powershell
-cd D:\nightingale-care-note\backend
+cd backend
 .\.venv\Scripts\python.exe -m alembic upgrade head
 .\.venv\Scripts\python.exe -m app.seed.command --reset-demo
 .\.venv\Scripts\python.exe -m uvicorn app.main:app --reload --port 8000
@@ -16,7 +16,7 @@ cd D:\nightingale-care-note\backend
 In a second PowerShell window:
 
 ```powershell
-cd D:\nightingale-care-note\frontend
+cd frontend
 npm run dev
 ```
 

@@ -41,6 +41,8 @@
 - Self-learning changes only a bounded ranking bonus (`0..3`); it never changes clinical risk labels.
 - Admin is read-only in the first version.
 
-## Project location
+## Repository portability
 
-The repository must remain at `D:\nightingale-care-note`. Do not relocate or duplicate the project onto C:.
+- Keep source code, scripts, tests, and reviewer-facing documentation independent of the checkout location.
+- Never commit machine-specific absolute paths, credentials, virtual environments, build caches, or IDE settings.
+- Commands in public documentation must work from the repository root or clearly named relative subdirectories.

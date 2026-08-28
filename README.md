@@ -1,34 +1,32 @@
 # Nightingale Care Note
 
-Nightingale Care Note 是一个 local-first、仅使用合成数据的纵向照护记录原型，面向 Nightingale 72HR Build。它不是通用聊天机器人，也不是通用文档工具；产品始终围绕三个问题：
+Nightingale Care Note is a local-first longitudinal care-record prototype built for the Nightingale 72HR Build. It uses synthetic data only and is organised around three questions:
 
-1. 现在最重要的事情是什么？
-2. 这条信息来自哪里？
-3. 谁确认、修改或处理过它？
+1. What matters now?
+2. Where did the information come from?
+3. Who reviewed, changed, or acted on it?
 
-> 安全声明：本仓库只允许使用合成患者数据，不可用于真实临床诊断、治疗或医疗决策。
+> **Safety notice:** This prototype is not for real patient data, clinical diagnosis, treatment, or medical decision-making.
 
-## Problem
+## Product overview
 
-长期照护记录会随着就诊、电话随访、患者自述和团队协作不断增长。重要风险、近期变化、待办和互相矛盾的信息容易被埋在时间线里，同时 AI 摘要又可能失去来源、权限和人工复核边界。
+Longitudinal records grow across consultations, follow-up calls, patient reports, and team collaboration. Important risks, recent changes, open work, and conflicting information can become buried in the timeline. Free-form AI summaries can also lose provenance, permissions, and human-review boundaries.
 
-Nightingale 将完整 Timeline 保留为事实记录，并用一个可解释、可追溯的 Care Glance 读模型回答“现在先看什么”。
+Nightingale preserves the complete Timeline as the record of events and adds an explainable, traceable Care Glance view for current priorities.
 
-## Product concept
+- **Timeline is the record:** manual and AI-assisted entries retain comments, immutable versions, on-demand diffs, and append-only revert.
+- **Care Glance is a deterministic read model:** it queries structured state and never invokes the LLM during reads.
+- **AI extracts only supported information:** DeepSeek output must satisfy a typed schema, and every source quote must exist in the redacted transcript.
+- **Clinical authority remains human:** AI suggestions cannot confirm themselves; only a clinician can review highlights and resolve conflicts.
+- **Every priority remains traceable:** `Highlight -> ClinicalFact -> Entry -> ConsultSession` preserves the evidence chain.
 
-- **Timeline 是记录主线**：保存人工记录与 AI 处理结果，支持版本、diff 和追加式 revert。
-- **Care Glance 是运行时读模型**：只查询结构化状态，不在读取时调用 LLM，也不单独持久化 CareState 表。
-- **AI 只提取有证据的信息**：DeepSeek 输出必须符合结构化 schema，source quote 必须能在脱敏 transcript 中精确定位。
-- **临床判断由人掌控**：AI suggestion 不能自行变成 clinician-confirmed；只有 clinician 能接受/拒绝建议和解决冲突。
-- **每个重点都能回到来源**：`Highlight → ClinicalFact → Entry → ConsultSession` 保留精确引用链。
-
-固定演示故事是完全合成的 Sarah Lim 跨月照护记录，覆盖青霉素过敏、胸部压迫感变化、Atorvastatin 剂量冲突、团队评论和版本恢复。
+The fixed demo story follows the fully synthetic patient Sarah Lim across several months. It covers a persistent allergy, worsening chest pressure, an Atorvastatin dose discrepancy, team comments, manual notes, and revision recovery.
 
 ## Architecture
 
 ```mermaid
 flowchart LR
-    UI[Next.js / React UI] -->|/api rewrite| API[FastAPI]
+    UI[Next.js / React UI] -->|same-origin /api rewrite| API[FastAPI]
     API --> RBAC[Clinic-scoped RBAC]
     RBAC --> DB[(PostgreSQL / local SQLite)]
     API --> REDACT[Deterministic PHI redaction]
@@ -36,247 +34,196 @@ flowchart LR
     PROVIDER --> DEEPSEEK[DeepSeek JSON mode]
     DEEPSEEK --> VALIDATE[Schema + source validation]
     VALIDATE --> DB
-    DB --> GLANCE[Deterministic Importance + CareState]
+    DB --> GLANCE[Deterministic importance + CareState]
     GLANCE --> UI
 ```
 
-关键数据流：
-
 ```text
-raw transcript（仅本地数据库）
-  → 确定性 PHI 脱敏
-  → DeepSeek provider abstraction
-  → Pydantic schema 与 source quote 校验
-  → Entry / ClinicalFact / Task / Highlight / Conflict
-  → 规则驱动的 Care Glance
+raw transcript (local database only)
+  -> deterministic PHI redaction
+  -> replaceable DeepSeek provider
+  -> Pydantic schema and source-quote validation
+  -> Entry / ClinicalFact / Task / Highlight / Conflict
+  -> rule-driven Care Glance
 ```
 
 ## Tech stack
 
-- Frontend: Next.js 16、React 19、TypeScript、Tailwind CSS、TanStack Query
-- Backend: Python 3.11+、FastAPI、SQLAlchemy 2、Pydantic v2、Alembic、psycopg
-- Database: 独立 Supabase PostgreSQL 项目；本地快速开发可使用 SQLite
-- LLM: DeepSeek，经可替换 `ScribeProvider` 抽象接入
-- Verification: pytest、Vitest、Testing Library、TypeScript、ESLint、Next.js production build
+- Frontend: Next.js 16, React 19, TypeScript, Tailwind CSS, TanStack Query
+- Backend: Python 3.11+, FastAPI, SQLAlchemy 2, Pydantic v2, Alembic, psycopg
+- Database: PostgreSQL/Supabase in the hosted configuration; SQLite for zero-configuration local review
+- LLM: DeepSeek behind a replaceable `ScribeProvider` abstraction
+- Verification: pytest, Vitest, Testing Library, TypeScript, ESLint, and Next.js production build
 
-## Setup
-
-仓库固定在：
+## Repository layout
 
 ```text
-D:\nightingale-care-note
+backend/                       FastAPI application, migrations, seed, and tests
+frontend/                      Next.js application and component/API tests
+docs/demo-script.md            6-8 minute reviewer walkthrough
+docs/requirements/             Canonical synthetic patient story
+output/pdf/                    Two-to-three-page technical brief
+scripts/                       Benchmark and document-generation utilities
+ATTRIBUTION.txt                Third-party software and service attribution
 ```
 
-后端（PowerShell）：
+## Quick start (local SQLite)
 
-```powershell
-cd D:\nightingale-care-note\backend
-py -3.12 --version
-py -3.12 -m venv .venv
-.\.venv\Scripts\python.exe -m pip install --upgrade pip
-.\.venv\Scripts\python.exe -m pip install -e ".[dev]"
-Copy-Item .env.example .env
+These commands work from any clone location. No database account or API key is required to review the core Timeline, Care Glance, RBAC, comments, and revision workflows.
+
+### 1. Clone the repository
+
+```bash
+git clone https://github.com/QFAN04/nightingale-care-note.git
+cd nightingale-care-note
 ```
 
-前端：
+### 2. Start the backend
+
+Python 3.11, 3.12, or 3.13 is supported.
+
+```bash
+cd backend
+python -m venv .venv
+```
+
+Activate the environment:
 
 ```powershell
-cd D:\nightingale-care-note\frontend
+# Windows PowerShell
+.\.venv\Scripts\Activate.ps1
+```
+
+```bash
+# macOS or Linux
+source .venv/bin/activate
+```
+
+Install, migrate, seed, and run:
+
+```bash
+python -m pip install --upgrade pip
+python -m pip install -e ".[dev]"
+python -m alembic upgrade head
+python -m app.seed.command
+python -m uvicorn app.main:app --reload --port 8000
+```
+
+The health endpoint is `http://127.0.0.1:8000/health`; OpenAPI is available at `http://127.0.0.1:8000/docs`.
+
+### 3. Start the frontend
+
+Open a second terminal from the repository root:
+
+```bash
+cd frontend
 npm ci
-Copy-Item .env.example .env.local
-```
-
-所有真实凭证只能放在本地 `.env` / `.env.local`；这些文件已被 Git 忽略。
-
-## Environment
-
-后端 `backend/.env`：
-
-| 变量 | 用途 | 本地示例 |
-|---|---|---|
-| `DATABASE_URL` | SQLAlchemy / Alembic 数据库连接 | `sqlite+pysqlite:///./nightingale.db` |
-| `DEEPSEEK_API_KEY` | DeepSeek 私密 API key | 只填写真实本地值 |
-| `DEEPSEEK_BASE_URL` | provider base URL | `https://api.deepseek.com` |
-| `DEEPSEEK_MODEL` | scribe 模型名 | `deepseek-v4-flash` |
-| `DEEPSEEK_MAX_TOKENS` | 单次结构化输出上限 | `2048` |
-| `DEEPSEEK_TIMEOUT_SECONDS` | provider 超时 | `30` |
-
-前端 `frontend/.env.local`：
-
-| 变量 | 用途 | 默认值 |
-|---|---|---|
-| `BACKEND_API_URL` | Next.js 服务端 API rewrite 目标 | `http://127.0.0.1:8000` |
-
-前端环境中不存放 DeepSeek 或数据库凭证。
-
-## Supabase setup
-
-必须使用独立项目 `nightingale-care-note`，不要修改其他项目（尤其是 `chat-langchain-study`）。
-
-1. 在 Supabase 项目设置中复制 PostgreSQL connection string。
-2. 将密码与项目 ref 填入本地 `backend/.env` 的 `DATABASE_URL`，不要提交该文件。
-3. 应用迁移：
-
-```powershell
-cd D:\nightingale-care-note\backend
-.\.venv\Scripts\python.exe -m alembic upgrade head
-```
-
-所有 13 张 `public` 业务表以及 Alembic 的 `public.alembic_version` 元数据表都启用了 RLS。第一版采用 **deny-by-default**：不创建客户端放行 policy，浏览器不能直接读写临床表；FastAPI 的 clinic-scoped RBAC 是业务授权边界。不要为了消除 Supabase Advisor 的 `RLS Enabled No Policy` INFO 而创建宽松 policy。
-
-## DeepSeek setup
-
-把真实 key 写入 `backend/.env`：
-
-```dotenv
-DEEPSEEK_API_KEY=your-local-secret
-DEEPSEEK_MODEL=deepseek-v4-flash
-```
-
-不要把 key 写进 Python、TypeScript、README、提交记录或聊天。没有配置 key 时，普通 Timeline / Glance 功能仍可运行；调用 Scribe 会明确返回 `503`。自动测试使用确定性 fake provider，不消耗 DeepSeek token。
-
-## Run backend
-
-先应用迁移并写入合成故事，再启动 FastAPI：
-
-```powershell
-cd D:\nightingale-care-note\backend
-.\.venv\Scripts\python.exe -m alembic upgrade head
-.\.venv\Scripts\python.exe -m app.seed.command
-.\.venv\Scripts\python.exe -m uvicorn app.main:app --reload --port 8000
-```
-
-健康检查：`http://127.0.0.1:8000/health`；OpenAPI：`http://127.0.0.1:8000/docs`。
-
-## Run frontend
-
-另开一个 PowerShell 窗口：
-
-```powershell
-cd D:\nightingale-care-note\frontend
 npm run dev
 ```
 
-打开 `http://localhost:3000`。前端通过同源 `/api/*` 请求转发到 `BACKEND_API_URL`。
+Open `http://localhost:3000`. The frontend rewrites same-origin `/api/*` requests to `http://127.0.0.1:8000` by default.
 
+## Optional environment configuration
 
-## Seed synthetic data
+The repository runs locally without environment files. Create local files only when overriding the defaults. Real credentials must stay in `.env` or `.env.local`; both are ignored by Git.
 
-```powershell
-cd D:\nightingale-care-note\backend
-.\.venv\Scripts\python.exe -m app.seed.command
+### Backend: `backend/.env`
+
+Copy `backend/.env.example` and edit only the values you need:
+
+| Variable | Purpose | Default/example |
+|---|---|---|
+| `DATABASE_URL` | SQLAlchemy and Alembic connection | `sqlite+pysqlite:///./nightingale.db` |
+| `DEEPSEEK_API_KEY` | Optional private DeepSeek key | local secret; never commit |
+| `DEEPSEEK_BASE_URL` | Provider base URL | `https://api.deepseek.com` |
+| `DEEPSEEK_MODEL` | Scribe model | `deepseek-v4-flash` |
+| `DEEPSEEK_MAX_TOKENS` | Structured response limit | `2048` |
+| `DEEPSEEK_TIMEOUT_SECONDS` | Provider timeout | `30` |
+
+Without a DeepSeek key, all non-Scribe features remain available and Scribe fails closed with an explicit `503`. Automated tests use a deterministic fake provider and consume no DeepSeek tokens.
+
+### Frontend: `frontend/.env.local`
+
+`BACKEND_API_URL` optionally changes the server-side rewrite destination. Its default is `http://127.0.0.1:8000`. No database or DeepSeek credential is stored in the frontend.
+
+## Supabase/PostgreSQL option
+
+The submitted hosted configuration uses a dedicated Supabase PostgreSQL project. To use another PostgreSQL database:
+
+1. Copy `backend/.env.example` to `backend/.env`.
+2. Replace `DATABASE_URL` with your own SQLAlchemy psycopg connection string.
+3. From `backend/`, run `python -m alembic upgrade head` and `python -m app.seed.command`.
+
+All 13 public application tables and `public.alembic_version` have RLS enabled. The prototype intentionally uses deny-by-default RLS without permissive browser policies; FastAPI's clinic-scoped RBAC remains the application authorisation boundary.
+
+## Synthetic demo data
+
+From `backend/`:
+
+```bash
+python -m app.seed.command
 ```
 
-命令只写入固定 Sarah Lim 合成故事，并且幂等：重复运行不会重复插入。输出只报告 created / already present，不打印 transcript。
+The seed is idempotent and reports only `created` or `already present`; it does not print the transcript. To restore the canonical demo state after rehearsal:
 
-在正式录屏前，如果 Accept / Reject、Conflict resolution、Scribe 或 Revision 操作已经改变了演示状态，可以显式恢复 canonical synthetic story：
-
-```powershell
-cd D:\nightingale-care-note\backend
-.\.venv\Scripts\python.exe -m app.seed.command --reset-demo
+```bash
+python -m app.seed.command --reset-demo
 ```
 
-该命令会清除 Nightingale 应用表中的现有合成演示操作并重新写入 Sarah fixture。为防止误删，它在发现固定 Sarah story 之外的 patient、clinic 或 user 时会拒绝执行。不要对包含其他数据的数据库使用该参数。
+The reset refuses to run when it finds a patient, clinic, or user outside the fixed Sarah fixture. Never use it on a database containing other data.
 
-## Tests
+## Tests and verification
 
-后端：
+Backend, from `backend/`:
 
-```powershell
-cd D:\nightingale-care-note\backend
-.\.venv\Scripts\python.exe -m pytest -q
-.\.venv\Scripts\python.exe -m compileall -q app tests alembic ..\scripts
-.\.venv\Scripts\python.exe ..\scripts\benchmark_glance.py
+```bash
+python -m pytest -q
+python -m compileall -q app tests alembic ../scripts
+python ../scripts/benchmark_glance.py
 ```
 
-前端：
+Frontend, from `frontend/`:
 
-```powershell
-cd D:\nightingale-care-note\frontend
+```bash
 npm test
 npm run typecheck
 npm run lint
 npm run build
 ```
 
-## PHI redaction
+The final measured local benchmark used 20 warmups and 200 requests. Care Glance P95 was 4.87 ms against the 300 ms target using FastAPI TestClient, SQLite, and the fixed synthetic dataset; it is a regression benchmark, not a hosted Supabase SLA.
 
-每次 LLM 调用前都执行确定性脱敏。第一版至少识别：
+## Security and trust boundaries
 
-- 已知患者姓名与 alias
-- 新加坡 8 位电话号码
-- IC / ID-like 标识
+### PHI redaction
 
-原始 transcript 只保留在本地数据库；provider 只收到 `redacted_transcript`。系统还会验证每个 AI `source_quote` 确实存在于脱敏文本中。普通日志和 AuditEvent 都不记录 transcript 或完整临床正文。
+Before every LLM request, deterministic redaction covers known patient names and aliases, Singapore eight-digit phone numbers, and IC/ID-like identifiers. The provider receives only `redacted_transcript`. Every returned source quote is checked against that text. Logs and audit events exclude transcripts and full clinical content.
 
-## RBAC enforcement
+### RBAC
 
-请求使用演示身份 header：
+Requests use the synthetic demo identity header `X-Demo-User-ID`. Authorisation is enforced by FastAPI and constrained to the same clinic.
 
-```text
-X-Demo-User-ID: <uuid>
-```
-
-授权在 FastAPI 服务端执行，并始终限制到同一 clinic：
-
-| Role | 第一版能力 |
+| Role | Prototype capabilities |
 |---|---|
-| Patient | 只访问自己的患者范围；只看 patient instruction 与已接受的 Glance 内容；可发起 AI-patient Scribe |
-| Staff | 查看同 clinic 时间线；新增/编辑 staff note；查看版本、diff/revert 自己类型的记录；内部评论；发起 nurse-patient Scribe |
-| Clinician | 查看完整同 clinic 上下文；新增/编辑 clinician note；查看版本、diff/revert 自己类型的记录；审核 Highlight；解决 Conflict；发起 doctor-patient Scribe |
-| Admin | 第一版只读，不拥有临床审核或编辑权限 |
+| Patient | Own patient scope; patient instructions and accepted Glance content; AI-patient Scribe |
+| Staff | Same-clinic timeline; staff notes and their revisions; internal comments; nurse-patient Scribe |
+| Clinician | Full same-clinic context; clinician-note revisions; Highlight review; Conflict resolution; doctor-patient Scribe |
+| Admin | Read-only clinic view |
 
-跨 clinic 查询返回 404，减少资源枚举泄露。前端隐藏不是授权控制。
+Cross-clinic lookups return `404` to reduce resource-enumeration leakage. UI hiding is never treated as an authorisation control.
 
-## Importance logic
+### Revision model
 
-Importance Engine 是确定性规则，不由 LLM 决定最终排序：
+Each update appends an immutable full snapshot. Diffs are calculated on demand, and revert appends another snapshot rather than deleting history. Updates require `expected_version`; stale writes return `409` and are never silently overwritten.
 
-```text
-final_score = risk
-            + recency
-            + entity type
-            + open task priority
-            + source authority
-            + persistent critical bonus
-            + bounded learning bonus
-```
+### Bounded self-learning
 
-关键不变量：
+Care Glance ranking is deterministic. Clinician Accept/Reject feedback changes only a same-clinic learning bonus, clamped to `0..3`. It cannot modify a risk label, cross clinic boundaries, or bypass review. Persistent critical allergies do not decay; low-risk transient information may be marked as a compression candidate but is not deleted.
 
-- persistent critical allergy 即使很旧也能保留。
-- learning bonus = `accept_count × 0.25 - reject_count × 0.20`，并 clamp 到 `0..3`。
-- 学习信号只在同 clinic 的相似实体间影响排序，不改变 `risk_level`。
-- clinician UI 不显示原始分数，只显示可读的 `risk_reason` 与来源。
-- 数据衰减目前只做非破坏性分类；过敏和已确认 critical 永不衰减，旧的低风险 transient 信息仅标记为 compression candidate，不执行删除。
+## Prototype trade-offs
 
-## Trade-offs
-
-- 使用 `X-Demo-User-ID` 展示 RBAC，而非实现完整 Supabase Auth；适合 72 小时原型，不适合生产身份认证。
-- RLS 当前 deny-by-default，后端负责 clinic scope；未来若允许 Supabase 客户端直连，必须先设计并测试完整 policy。
-- revision 保存不可变全文快照，换取简单可靠的 diff/revert；大规模长期存储可再评估 delta 压缩。
-- 冲突检测第一版只覆盖“同一药物、不同剂量”，避免把不确定语义交给 LLM。
-- local synthetic benchmark 排除公网与 Supabase 网络延迟；远程端到端性能需在部署环境单独记录。
-- 不包含 Voice Capture、真实患者数据或自动医疗建议。
-
-## Performance
-
-Care Glance 目标是本地 warm-path `P95 ≤ 300ms`。可重复基准固定使用 Sarah Lim 合成数据、20 次预热和 200 次测量：
-
-```powershell
-cd D:\nightingale-care-note\backend
-.\.venv\Scripts\python.exe ..\scripts\benchmark_glance.py
-```
-
-2026-08-26 的 Gate 15 记录：
-
-| Metric | Result |
-|---|---:|
-| Warmups | 20 |
-| Measured requests | 200 |
-| P50 | 4.35 ms |
-| P95 | 4.87 ms |
-| Max | 5.23 ms |
-| Target | PASS |
-
-该数字测量 FastAPI TestClient + 本地 SQLite + 固定合成数据的应用读取路径，用于回归比较，不代表公网 Supabase SLA。
+- `X-Demo-User-ID` demonstrates server-enforced role boundaries but is not production authentication.
+- RLS is deny-by-default because browsers never connect directly to clinical tables in this prototype.
+- Full snapshots favour reliable audit, diff, and revert over storage compression.
+- Conflict detection is deliberately limited to the supported medication-dose case.
+- Voice capture, real patient data, public deployment, and automated medical advice are out of scope.
